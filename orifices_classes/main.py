@@ -52,7 +52,6 @@ def create_orifice(name: str | OrificeType, **kwargs):
         if k in sig.parameters and k != "self"
     }
     inst = cls(**init_args)
-    #todo сначала происходит проверка потом умножение на поправку!!!!!!!!!!!!!!!!!!!!
     if not inst.validate():
         raise ValueError(f"Валидация геометрии ССУ '{name.value}' не пройдена")
     return inst

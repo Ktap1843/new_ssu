@@ -47,28 +47,30 @@ class CalculationController:
     from orifices_classes.main import create_orifice, OrificeType
     from orifices_classes.materials import calc_alpha
 
-    # 1) Сбор аргументов фабрики
-    typ = OrificeType(self.cp.get("type", OrificeType.SHARP).lower())
-    or_args = {
-        "D": self.params.D,  # D при 20°C, термокоррекцию делаем ниже
-        "d": self.params.d,  # d при 20°C
-        "Re": self.flow_state.Re,  # уже число
-    }
-    # Марки стали для термокоррекции
-    d20_steel = self.cp.get("d20_steel", "20")
-    D20_steel = self.cp.get("D20_steel", "20")
+    # Аргументы для конструктора ССУ (холодные размеры при 20°C)
+    typ = OrificeType((self.cp.get("type") or "sharp"))
+    # Re берём из состояния, если нет — минимально допустимый для класса
+    Re_val = getattr(getattr(self, "flow_state", None), "Re", None) or 1.0e5
 
-    # Типоспецифичные параметры (если есть в JSON)
+    or_args = {
+        "D": self.params.D,
+        "d": self.params.d,
+        "Re": Re_val,
+    }
+    # Типоспецифичные параметры, если есть во входе
     for k in ("alpha", "e", "Ed", "dk", "beta"):
         if k in self.cp and self.cp[k] is not None:
             or_args[k] = self.cp[k]
 
-    # 2) Создаём ССУ БЕЗ валидации (важно!)
+    # 1) Создание БЕЗ валидации
     self.orifice = create_orifice(typ, do_validate=False, **or_args)
 
-    # 3) Сразу термокоррекция геометрии (на рабочую T)
+    # 2) Термокоррекция геометрии на рабочую T
+    d20_steel = self.cp.get("d20_steel") or "20"
+    D20_steel = self.cp.get("D20_steel") or "20"
     alpha_CCU = calc_alpha(d20_steel, self.ep["T"])  # для d
     alpha_T = calc_alpha(D20_steel, self.ep["T"])  # для D
+
     self.orifice.update_geometry_from_temp(
         d_20=self.params.d,
         D_20=self.params.D,
@@ -77,25 +79,27 @@ class CalculationController:
         t=self.ep["T"],
     )
 
-    # 4) Теперь ВАЛИДАЦИЯ уже по скорректированным d, D
+    # 3) Валидация УЖЕ после термокоррекции
     if not self.orifice.validate():
         raise ValueError(f"Валидация геометрии ССУ '{typ.value}' не пройдена")
 
-    # 5) Проверка шероховатости на актуальной β и D
-    if "Ra" in self.cp and self.cp["Ra"] is not None:
-        self.valid_rough = self.orifice.validate_roughness(self.cp["Ra"] / 1000.0)
+    # 4) Проверка шероховатости
+    Ra_um = self.cp.get("Ra")
+    if Ra_um is not None:
+        self.valid_rough = self.orifice.validate_roughness(Ra_um / 1000.0)
     else:
         self.valid_rough = True
 
-    # 6) Полный расчёт параметров ССУ
+    # 5) Полный расчёт параметров ССУ
     self.ssu_res = self.orifice.run_all(
         delta_p=self.params.dp,
         p=self.ep["p"],
         k=self.pp.get("k"),
-        Ra=(self.cp.get("Ra") / 1000.0) if self.cp.get("Ra") is not None else None,
+        Ra=(Ra_um / 1000.0) if Ra_um is not None else None,
         alpha=self.cp.get("alpha"),
     )
-    log.debug(f"SSU результат: {self.ssu_res}")
+
+    log.debug("SSU результат: %s", self.ssu_res)
 
     def _calculate_straightness(self):
         log.info("Расчёт длин прямолинейных участков")
