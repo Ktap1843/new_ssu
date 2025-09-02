@@ -6,10 +6,9 @@
 - Порядок вызовов:
     1) run_calculations()
     2) run() / dispatch() / calculate() / process()
-    3) Явная последовательность шагов по ctrlRequest.steps:
-       - "calculate_physics" (опционально)
-       - "create_orifice"
-       - "calculate_flow"
+    3) Явная последовательность шагов по ctrlRequest.steps
+       (по умолчанию: ["create_orifice", "calculate_flow"]).
+- Возвращает расширенную диагностику adapter_debug при неудачах.
 """
 from __future__ import annotations
 
@@ -19,7 +18,7 @@ from typing import Any, Dict, Optional, Tuple
 try:
     from controllers.calculation_controller import CalculationController  # type: ignore
     _HAVE_CALC_CTRL = True
-except Exception:
+except Exception:  # контроллер отсутствует в проекте
     CalculationController = None  # type: ignore
     _HAVE_CALC_CTRL = False
 
@@ -27,11 +26,15 @@ except Exception:
 # ----------------- helpers -----------------
 
 def _is_flowdata_keyerror(exc: BaseException) -> bool:
+    """True, если это KeyError('flowdata')."""
     return isinstance(exc, KeyError) and bool(exc.args) and exc.args[0] == "flowdata"
 
 
 def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: Any) -> Dict[str, Any]:
-    """Строит legacy-структуру {"flowdata": {...}} из нашего формата."""
+    """
+    Строит legacy-структуру {"flowdata": {...}} из нашего формата.
+    d20/D20 — узлы с unit в мм (если нет в сыром JSON), p/dp/T — как в сыром, иначе значения SI.
+    """
     len_props = (((raw.get("lenPackage") or {}).get("lenProperties")) or {})
     phys_props = (((raw.get("physPackage") or {}).get("physProperties")) or {})
     flow_props = (((raw.get("flowPackage") or {}).get("flowProperties")) or {})
@@ -39,7 +42,7 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
     d20_node = len_props.get("d20") or {"real": float(prepared.d) * 1000.0, "unit": "mm"}
     D20_node = (len_props.get("D") or len_props.get("D20")) or {"real": float(prepared.D) * 1000.0, "unit": "mm"}
 
-    p_node  = phys_props.get("p_abs") or float(prepared.p1)  # Па
+    p_node  = phys_props.get("p_abs") or float(prepared.p1)  # Па (число допустимо — _num_or_unit справится)
     dp_node = phys_props.get("dp")    or float(prepared.dp)  # Па
     T_node  = phys_props.get("T")     or float(prepared.t1)  # °C
 
@@ -62,9 +65,13 @@ def _build_init_kwargs(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any
         return {}
 
     candidates = {
+        # сырой вход
         "data": raw, "raw": raw, "input": raw, "input_data": raw, "request": raw,
+        # подготовленные параметры
         "prepared": prepared, "prepared_params": prepared, "prepared_data": prepared, "params": prepared,
+        # распарсенные SI-значения
         "parsed": parsed, "values": parsed, "values_si": parsed, "parsed_values": parsed,
+        # общий контекст
         "context": {"prepared": prepared, "parsed": parsed, "raw": raw},
     }
 
@@ -78,44 +85,55 @@ def _build_init_kwargs(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any
 
 
 def _try_construct(args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> Any:
+    """Обёртка конструктора (не глотаем исключения)."""
     return CalculationController(*args, **kwargs)  # type: ignore[misc]
 
 
-def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) -> Optional[Any]:
-    """Создаёт экземпляр контроллера. При KeyError('flowdata') подменяем raw → legacy и повторяем попытки."""
+def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any], debug: Dict[str, Any]) -> Optional[Any]:
+    """
+    Создаёт экземпляр контроллера. При KeyError('flowdata') подменяем raw → legacy и повторяем попытки.
+    В debug['construct_attempts'] сохраняем шаги и исключения.
+    """
     if not _HAVE_CALC_CTRL or CalculationController is None:
+        debug["construct_attempts"].append("CalculationController not importable")
         return None
 
     legacy = _build_legacy_data(raw, parsed, prepared)
 
     # 1) 0-арг
     try:
+        debug["construct_attempts"].append("try: __init__()")
         return _try_construct((), {})
-    except TypeError:
-        pass
+    except TypeError as e:
+        debug["construct_attempts"].append(f"__init__() TypeError: {e}")
     except Exception as e:
+        debug["construct_attempts"].append(f"__init__() Exception: {e}")
         if _is_flowdata_keyerror(e):
             try:
+                debug["construct_attempts"].append("try: __init__(data=legacy)")
                 return _try_construct((), {"data": legacy})
-            except Exception:
-                pass
+            except Exception as e2:
+                debug["construct_attempts"].append(f"__init__(data=legacy) Exception: {e2}")
 
     # 2) kwargs
     kw = _build_init_kwargs(prepared, parsed, raw)
     if kw:
         try:
+            debug["construct_attempts"].append(f"try: __init__(**kw:{list(kw.keys())})")
             return _try_construct((), kw)
-        except TypeError:
-            pass
+        except TypeError as e:
+            debug["construct_attempts"].append(f"__init__(**kw) TypeError: {e}")
         except Exception as e:
+            debug["construct_attempts"].append(f"__init__(**kw) Exception: {e}")
             if _is_flowdata_keyerror(e):
                 for key in ("data", "raw", "input", "input_data", "request"):
                     if key in kw:
                         kw[key] = legacy
                 try:
+                    debug["construct_attempts"].append(f"try: __init__(**kw_legacy:{list(kw.keys())})")
                     return _try_construct((), kw)
-                except Exception:
-                    pass
+                except Exception as e2:
+                    debug["construct_attempts"].append(f"__init__(**kw_legacy) Exception: {e2}")
 
     # 3) позиционные
     combos = [
@@ -129,16 +147,19 @@ def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str
     for names, kwd in combos:
         args = tuple(valmap[n] for n in names)
         try:
+            debug["construct_attempts"].append(f"try: __init__{names}")
             return _try_construct(args, kwd)
-        except TypeError:
-            continue
+        except TypeError as e:
+            debug["construct_attempts"].append(f"__init__{names} TypeError: {e}")
         except Exception as e:
+            debug["construct_attempts"].append(f"__init__{names} Exception: {e}")
             if _is_flowdata_keyerror(e):
                 args_legacy = tuple(legacy if n == "raw" else valmap[n] for n in names)
                 try:
+                    debug["construct_attempts"].append(f"try: __init__{names}_legacy(raw→legacy)")
                     return _try_construct(args_legacy, kwd)
-                except Exception:
-                    continue
+                except Exception as e2:
+                    debug["construct_attempts"].append(f"__init__{names}_legacy Exception: {e2}")
 
     return None
 
@@ -164,11 +185,14 @@ def _collect_state(ctrl: Any) -> Dict[str, Any]:
 # ----------------- public API -----------------
 
 def run_calculation(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) -> Dict[str, Any]:
-    ctrl = _instantiate_controller(prepared, parsed, raw)
+    debug: Dict[str, Any] = {"construct_attempts": []}
+
+    ctrl = _instantiate_controller(prepared, parsed, raw, debug)
     if ctrl is None:
         return {
             "status": "stub",
             "error": "CalculationController не обнаружен или не удалось сконструировать.",
+            "adapter_debug": debug,
             "prepared": {
                 "d": prepared.d, "D": prepared.D, "p1": prepared.p1, "t1": prepared.t1, "dp": prepared.dp,
                 "R": prepared.R, "Z": prepared.Z,
@@ -176,12 +200,11 @@ def run_calculation(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) 
             "used_values_si": {k: float(v) for k, v in parsed.items()},
         }
 
-    # 1) Полный сценарий, если у контроллера есть run_calculations()
+    # 1) Полный сценарий, если есть run_calculations()
     if hasattr(ctrl, "run_calculations"):
         try:
             return ctrl.run_calculations()
         except TypeError:
-            # вдруг нужен prepared/parsed/raw
             try:
                 return ctrl.run_calculations(prepared=prepared, parsed=parsed, raw=raw)
             except TypeError:
@@ -203,7 +226,7 @@ def run_calculation(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) 
                 except TypeError:
                     continue
 
-    # 3) Ручной сценарий по ctrlRequest.steps
+    # 3) Ручной сценарий: обязательно включаем _create_orifice и _calculate_flow
     steps = (raw.get("ctrlRequest") or {}).get("steps") or ["create_orifice", "calculate_flow"]
     status = {"status": "ok", "steps": []}
 
@@ -218,12 +241,11 @@ def run_calculation(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) 
     if "calculate_physics" in steps and hasattr(ctrl, "_calculate_physics"):
         _call("_calculate_physics")
 
-    if "create_orifice" in steps and hasattr(ctrl, "_create_orifice"):
-        _call("_create_orifice")
-
-    if "calculate_flow" in steps and hasattr(ctrl, "_calculate_flow"):
-        _call("_calculate_flow")
+    # ГАРАНТИРОВАННО вызываем _create_orifice и _calculate_flow, если они существуют
+    _call("_create_orifice") if "_create_orifice" in dir(ctrl) else status["steps"].append("_create_orifice:missing")
+    _call("_calculate_flow") if "_calculate_flow" in dir(ctrl) else status["steps"].append("_calculate_flow:missing")
 
     state = _collect_state(ctrl)
     status.update(state)
+    status["adapter_debug"] = debug
     return status

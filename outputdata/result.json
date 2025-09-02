@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-02T07:03:24.371889Z",
+    "ts": "2025-09-02T07:10:09.930460Z",
     "input": "inputdata\\1.json",
     "type": "sharp",
     "methodic": "otHER",
@@ -18,10 +18,32 @@
     "[OK] D20 <- lenPackage.lenProperties.D → 0.300 m",
     "[OK] dp <- physPackage.physProperties.dp → 2.0E+4 Pa"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001B79133C0D0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001EE0FED9090>",
   "result": {
     "status": "stub",
     "error": "CalculationController не обнаружен или не удалось сконструировать.",
+    "adapter_debug": {
+      "construct_attempts": [
+        "try: __init__()",
+        "__init__() TypeError: CalculationController.__init__() missing 2 required positional arguments: 'data' and 'prepared_params'",
+        "try: __init__(**kw:['data', 'prepared_params'])",
+        "__init__(**kw) Exception: 'flowdata'",
+        "try: __init__(**kw_legacy:['data', 'prepared_params'])",
+        "__init__(**kw_legacy) Exception: 'straightness_params'",
+        "try: __init__('raw', 'prepared')",
+        "__init__('raw', 'prepared') Exception: 'flowdata'",
+        "try: __init__('raw', 'prepared')_legacy(raw→legacy)",
+        "__init__('raw', 'prepared')_legacy Exception: 'straightness_params'",
+        "try: __init__('prepared', 'raw')",
+        "__init__('prepared', 'raw') TypeError: 'PreparedController' object is not subscriptable",
+        "try: __init__('prepared', 'parsed', 'raw')",
+        "__init__('prepared', 'parsed', 'raw') TypeError: CalculationController.__init__() takes 3 positional arguments but 4 were given",
+        "try: __init__('raw',)",
+        "__init__('raw',) TypeError: CalculationController.__init__() missing 1 required positional argument: 'prepared_params'",
+        "try: __init__('prepared',)",
+        "__init__('prepared',) TypeError: CalculationController.__init__() missing 1 required positional argument: 'prepared_params'"
+      ]
+    },
     "prepared": {
       "d": 0.1,
       "D": 0.3,
