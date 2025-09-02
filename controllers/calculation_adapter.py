@@ -1,28 +1,22 @@
-# file: controllers/calculation_adapter.py
 """
 Адаптер для гибкого вызова пользовательского CalculationController.
-Зачем: у пользователя уже есть CalculationController, который раскидывает расчёты.
-Этот модуль аккуратно импортирует его, находит подходящий метод (run/dispatch/calculate/process)
-и передаёт параметры. Если контроллер не найден — возвращает диагностическую заглушку.
+Ищет метод в порядке: run → dispatch → calculate → process.
+Пробует сигнатуры: (prepared, parsed, raw) именованные и позиционные; либо (prepared).
+Возвращает диагностическую заглушку, если класса/метода нет.
 """
 from __future__ import annotations
 
 from typing import Any, Dict
 
-try:  # динамический импорт пользовательского контроллера расчёта
+try:
     from controllers.calculation_controller import CalculationController  # type: ignore
     _HAVE_CALC_CTRL = True
-except Exception:  # нет ещё файла/класса — используем заглушку
+except Exception:
     CalculationController = None  # type: ignore
     _HAVE_CALC_CTRL = False
 
 
 def run_calculation(prepared, parsed: Dict[str, Any], raw: Dict[str, Any]) -> Dict[str, Any]:
-    """Единая точка входа для вызова контроллера расчёта.
-
-    Пытается вызвать CalculationController.{run|dispatch|calculate|process}.
-    Возвращает словарь (готовый для записи в output).
-    """
     if not _HAVE_CALC_CTRL or CalculationController is None:
         return {
             "status": "stub",
@@ -44,7 +38,6 @@ def run_calculation(prepared, parsed: Dict[str, Any], raw: Dict[str, Any]) -> Di
     for meth_name in ("run", "dispatch", "calculate", "process"):
         if hasattr(ctrl, meth_name):
             meth = getattr(ctrl, meth_name)
-            # пробуем несколько сигнатур
             try:
                 return meth(prepared=prepared, parsed=parsed, raw=raw)
             except TypeError:
