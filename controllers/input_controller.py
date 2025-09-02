@@ -1,505 +1,238 @@
-# file: controllers/input_controller.py
-"""
-ПЛАН (псевдокод):
-1) Цель: Универсально читать входные JSON-словари с меняющейся структурой
-   и приводить значения к внутренним единицам SI для последующего расчёта.
-   Нужна устойчивость к:
-      - разным путям в JSON (алиасы путей),
-      - формату чисел: просто число или {real, unit} / {value: {real, unit}},
-      - разношёрстным обозначениям единиц ("mm_Hg", "m3_h", "°C", ...),
-      - частично отсутствующим полям (мягкая деградация и лог замечаний).
-
-2) Абстракции:
-   - DotPath: обращение к полю по "a.b.c" с безопасной навигацией.
-   - UnitCategory: pressure/temperature/length/volflow/massflow.
-   - UnitNormalizer: нормализация строк единиц к каноническому виду.
-   - ValueExtractor: извлекает число из узла (int|float|dict с unit),
-     при необходимости конвертирует в целевую единицу категории.
-
-3) Спецификация входа (InputSpec):
-   - Для каждой целевой величины задать список альтернативных путей и категорию,
-     плюс целевую единицу, а также обязательность для расчёта.
-   - Первый найденный путь используется; если нет — пишем замечание.
-
-4) Контроллер:
-   - class InputController:
-       - parse(data) -> ParsedInput: словарь SI-значений + список замечаний.
-       - prepare_params(data) -> PreparedController: жёсткие проверки для
-         расчёта; падение только если обязательные поля не найдены.
-
-5) Конвертация единиц:
-   - Используем converters.units_validator (если доступен).
-   - На случай отсутствия — локальные минимальные конвертеры (pressure/length/
-     volflow/temperature), чтобы не падать на ранней интеграции.
-
-6) Примаппинг текущего JSON (по образцу из сообщения):
-   - p_abs ← physPackage.physProperties.p_abs
-   - p_atm ← physPackage.physProperties.p_atm
-   - p_st  ← physPackage.physProperties.p_st
-   - T     ← physPackage.physProperties.T
-   - T_st  ← physPackage.physProperties.T_st
-   - q_v   ← flowPackage.flowProperties.q_v
-   - d20,D20 ← lenPackage.lenProperties.{d20,D}  (или позже из techParams)
-   - dp    ← (пока нет в примере) зарезервировано под альтернативные пути
-
-7) Выходные единицы для PreparedController (исторически):
-   - d, D: м; p1: Па (абс); dp: Па; t1: °C; R: Дж/(моль·К); Z: безразм.
-
-8) Логика устойчивости:
-   - Все значения собираются «мягко»: добавляется remark, если поле не найдено.
-   - В prepare_params() чётко проверяются необходимые для выбранного расчёта поля.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-# --- Попытка использовать общий конвертер из converters.units_validator ---
-try:  # noqa: SIM105
-    from converters.units_validator import (
-        convert_length,
-        convert_pressure,
-        convert_volflow,
-    )
-    from converters.units_validator import (
-        # вспомогательные для температуры (если есть)
-        # безопасно определим локально ниже, если в модуле их нет
-        dynamic_viscosity_from_rho_nu,  # noqa: F401  (для будущего)
-    )
-    HAVE_CONVERTERS = True
-except Exception:  # модуль ещё не подключен в репозиторий
-    HAVE_CONVERTERS = False
+from logger_config import get_logger
+from controllers.prepare_controller import PreparedController
+from converters.units_validator import (
+    convert_length,
+    convert_pressure,
+    kelvin_to_celsius,
+)
+
+log = get_logger("InputController")
 
 
-# --------------------------- Локальные конвертеры (fallback) ---------------------------
-# Почему нужны: чтобы модуль не падал до интеграции общего конвертера.
+# ------------------------ helpers ------------------------
 
-def _norm_unit(u: str) -> str:
-    u = (u or "").strip()
-    return u.replace(" ", "").replace("_", "/").replace("·", "*")
-
-
-def _k_pressure_to_pa(unit: str) -> Decimal:
-    u = _norm_unit(unit).lower()
-    m = {
-        "pa": Decimal("1"),
-        "kpa": Decimal("1e3"),
-        "mpa": Decimal("1e6"),
-        "bar": Decimal("1e5"),
-        "mmhg": Decimal("1.3332e2"),
-        "mm/hg": Decimal("1.3332e2"),
-        "mmhg": Decimal("1.3332e2"),
-        "mmhg": Decimal("1.3332e2"),
-        "mmhg": Decimal("1.3332e2"),
-        "mmhg": Decimal("1.3332e2"),
-        "kgf/cm2": Decimal("9.80665e4"),
-        "kgf/m2": Decimal("9.80665"),
-        # Варианты из примера
-        "mm/hg": Decimal("1.3332e2"),
-    }
-    # Частые синонимы из входа
-    if u in ("mmhg", "mmhg", "mmhg"):
-        return Decimal("1.3332e2")
-    if u in ("mmhg", "mm/hg", "mm_hg", "mmhg"):
-        return Decimal("1.3332e2")
-    return m.get(u, Decimal("1"))
-
-
-def _convert_pressure(val: float | Decimal, unit: str, to_unit: str = "Pa") -> Decimal:
-    if HAVE_CONVERTERS:
-        return Decimal(str(convert_pressure(val, unit, to_unit)))
-    if to_unit.lower() != "pa":
-        raise ValueError("Локальный конвертер давления поддерживает только Pa")
-    k = _k_pressure_to_pa(unit)
-    return Decimal(str(val)) * k
-
-
-def _k_length_to_m(unit: str) -> Decimal:
-    u = _norm_unit(unit).lower()
-    if u in ("m",):
-        return Decimal("1")
-    if u in ("mm",):
-        return Decimal("1e-3")
-    return Decimal("1")
-
-
-def _convert_length(val: float | Decimal, unit: str, to_unit: str = "m") -> Decimal:
-    if HAVE_CONVERTERS:
-        return Decimal(str(convert_length(val, unit, to_unit)))
-    if to_unit.lower() != "m":
-        raise ValueError("Локальный конвертер длины поддерживает только m")
-    return Decimal(str(val)) * _k_length_to_m(unit)
-
-
-def _k_vol_to_m3s(unit: str) -> Decimal:
-    u = _norm_unit(unit).lower()
-    if u in ("m3/s", "m3s"):
-        return Decimal("1")
-    if u in ("m3/h", "m3h"):
-        return Decimal("1") / Decimal("3600")
-    if u in ("l/s", "ls"):
-        return Decimal("1e-3")
-    if u in ("l/min", "l/min", "lmin"):
-        return Decimal("1e-3") / Decimal("60")
-    if u in ("m3_h",):
-        return Decimal("1") / Decimal("3600")
-    return Decimal("1")
-
-
-def _convert_volflow(val: float | Decimal, unit: str, to_unit: str = "m3/s") -> Decimal:
-    if HAVE_CONVERTERS:
-        return Decimal(str(convert_volflow(val, unit, to_unit)))
-    if to_unit.lower() not in ("m3/s", "m3s"):
-        raise ValueError("Локальный конвертер расхода поддерживает только м³/с")
-    return Decimal(str(val)) * _k_vol_to_m3s(unit)
-
-
-def kelvin_to_celsius(x: float | Decimal) -> Decimal:
-    # Критично: PreparedController исторически ждёт °C
-    return Decimal(str(x)) - Decimal("273.15")
-
-
-# --------------------------- Вспомогательная навигация по JSON ---------------------------
-
-def _get_by_path(root: Dict[str, Any], path: str) -> Any:
-    cur: Any = root
-    for key in path.split('.'):
-        if not isinstance(cur, dict) or key not in cur:
+def _dig(data: Dict[str, Any], path: Sequence[str]) -> Any:
+    cur: Any = data
+    for k in path:
+        if not isinstance(cur, dict) or k not in cur:
             return None
-        cur = cur[key]
+        cur = cur[k]
     return cur
 
 
-def _first_existing(root: Dict[str, Any], paths: Iterable[str]) -> Tuple[Optional[str], Any]:
+def _first(data: Dict[str, Any], *paths: Sequence[str]) -> Tuple[Optional[Any], Optional[Sequence[str]]]:
     for p in paths:
-        v = _get_by_path(root, p)
+        v = _dig(data, p)
         if v is not None:
-            return p, v
+            return v, p
     return None, None
 
 
-# --------------------------- Извлечение значений с единицами ---------------------------
-
-class Category:
-    PRESSURE = "pressure"
-    TEMPERATURE = "temperature"
-    LENGTH = "length"
-    VOLFLOW = "volflow"
-    MASSFLOW = "massflow"
-
-
-def _extract_number_or_unit(node: Any, *, default_unit: str, category: str) -> Decimal:
-    """Возвращает значение в целевых единицах категории (SI),
-    поддерживает:
-      - просто число
-      - {real, unit}
-      - {value: {real, unit}}
-    default_unit — если unit не указан.
-    """
-    def as_decimal(x: Any) -> Decimal:
-        return Decimal(str(x))
-
-    # распаковка вложенного {value: {...}}
-    if isinstance(node, dict) and "value" in node and isinstance(node["value"], dict):
-        node = node["value"]
-
-    # просто число
-    if isinstance(node, (int, float, Decimal)):
-        val, unit = as_decimal(node), default_unit
-    elif isinstance(node, dict):
-        val = node.get("real") if "real" in node else node.get("value")
-        unit = node.get("unit") or default_unit
-        if val is None:
-            raise ValueError("Ожидалось поле 'real'/'value' в объекте с единицами.")
-        val = as_decimal(val)
-    else:
-        raise ValueError(f"Некорректный узел значения: {node}")
-
-    # конвертация по категории
-    cu = (unit or default_unit)
-    if category == Category.LENGTH:
-        return _convert_length(val, cu, "m")
-    if category == Category.PRESSURE:
-        return _convert_pressure(val, cu, "Pa")
-    if category == Category.VOLFLOW:
-        return _convert_volflow(val, cu, "m3/s")
-    if category == Category.TEMPERATURE:
-        u = (cu or "").lower()
-        if u in ("c", "°c", "celsius"):
-            return val
-        if u in ("k", "kelvin"):
-            return kelvin_to_celsius(val)
-        raise ValueError(f"Неизвестная единица температуры: '{unit}'. Ожидается 'C' или 'K'.")
-    if category == Category.MASSFLOW:
-        # при необходимости — аналогично VOLFLOW, пока не используется здесь
-        return val
-
-    return val
+def _as_pressure_pa(node: Any, default_unit: str = "Pa") -> Optional[float]:
+    if node is None:
+        return None
+    if isinstance(node, (int, float)):
+        return float(convert_pressure(node, default_unit, "Pa"))
+    if isinstance(node, dict):
+        box = node.get("value") if "value" in node and isinstance(node["value"], dict) else node
+        val = box.get("real")
+        unit = box.get("unit", default_unit)
+        if isinstance(val, (int, float)):
+            return float(convert_pressure(val, unit, "Pa"))
+    return None
 
 
-# --------------------------- Спецификация входа ---------------------------
+def _as_length_m(node: Any, default_unit: str = "mm") -> Optional[float]:
+    if node is None:
+        return None
+    if isinstance(node, (int, float)):
+        return float(convert_length(node, default_unit, "m"))
+    if isinstance(node, dict):
+        box = node.get("value") if "value" in node and isinstance(node["value"], dict) else node
+        val = box.get("real")
+        unit = box.get("unit", default_unit)
+        if isinstance(val, (int, float)):
+            return float(convert_length(val, unit, "m"))
+    return None
 
-@dataclass
-class FieldSpec:
-    name: str
-    category: str
-    target_unit: str  # используется только для документации/логов
-    required: bool
-    candidates: Tuple[str, ...]  # альтернативные пути в JSON
-    default_unit: str
+
+def _as_temp_c(node: Any, default_unit: str = "C") -> Optional[float]:
+    if node is None:
+        return None
+    if isinstance(node, (int, float)):
+        if default_unit.lower().startswith("k"):
+            return float(kelvin_to_celsius(node))
+        return float(node)
+    if isinstance(node, dict):
+        box = node.get("value") if "value" in node and isinstance(node["value"], dict) else node
+        val = box.get("real")
+        unit = str(box.get("unit", default_unit)).lower()
+        if not isinstance(val, (int, float)):
+            return None
+        if unit.startswith("k"):
+            return float(kelvin_to_celsius(val))
+        if unit in ("c", "°c", "celsius"):
+            return float(val)
+    return None
 
 
-DEFAULT_SPEC: Tuple[FieldSpec, ...] = (
-    FieldSpec(
-        name="p_abs",
-        category=Category.PRESSURE,
-        target_unit="Pa",
-        required=False,
-        candidates=(
-            "physPackage.physProperties.p_abs",
-            "physPackage.p_abs",
-            "environment_parameters.p_abs",  # на будущее
-        ),
-        default_unit="Pa",
-    ),
-    FieldSpec(
-        name="p_atm",
-        category=Category.PRESSURE,
-        target_unit="Pa",
-        required=False,
-        candidates=(
-            "physPackage.physProperties.p_atm",
-            "physPackage.p_atm",
-        ),
-        default_unit="Pa",
-    ),
-    FieldSpec(
-        name="p_st",
-        category=Category.PRESSURE,
-        target_unit="Pa",
-        required=False,
-        candidates=(
-            "physPackage.physProperties.p_st",
-            "physPackage.p_st",
-        ),
-        default_unit="Pa",
-    ),
-    FieldSpec(
-        name="T",
-        category=Category.TEMPERATURE,
-        target_unit="C",
-        required=False,
-        candidates=(
-            "physPackage.physProperties.T",
-            "physPackage.T",
-        ),
-        default_unit="C",
-    ),
-    FieldSpec(
-        name="T_st",
-        category=Category.TEMPERATURE,
-        target_unit="C",
-        required=False,
-        candidates=(
-            "physPackage.physProperties.T_st",
-            "physPackage.T_st",
-        ),
-        default_unit="C",
-    ),
-    FieldSpec(
-        name="q_v",
-        category=Category.VOLFLOW,
-        target_unit="m3/s",
-        required=False,
-        candidates=(
-            "flowPackage.flowProperties.q_v",
-            "flowPackage.q_v",
-        ),
-        default_unit="m3/h",  # частый случай в примерах
-    ),
-    FieldSpec(
-        name="q_st",
-        category=Category.VOLFLOW,
-        target_unit="m3/s",
-        required=False,
-        candidates=(
-            "flowPackage.flowProperties.q_st",
-            "flowPackage.q_st",
-        ),
-        default_unit="m3/h",
-    ),
-    FieldSpec(
-        name="d20",
-        category=Category.LENGTH,
-        target_unit="m",
-        required=False,
-        candidates=(
-            "lenPackage.lenProperties.d20",
-            "errorPackage.errors.techParamsProState.d",  # если придёт там
-        ),
-        default_unit="mm",
-    ),
-    FieldSpec(
-        name="D20",
-        category=Category.LENGTH,
-        target_unit="m",
-        required=False,
-        candidates=(
-            "lenPackage.lenProperties.D",
-            "lenPackage.lenProperties.D20",
-            "errorPackage.errors.techParamsProState.D",
-        ),
-        default_unit="mm",
-    ),
-    FieldSpec(
-        name="dp",
-        category=Category.PRESSURE,
-        target_unit="Pa",
-        required=False,
-        candidates=(
-            "environment_parameters.dp",
-            "physPackage.physProperties.dp",
-            "flowPackage.flowProperties.dp",
-        ),
-        default_unit="Pa",
-    ),
-)
-
+# ------------------------ parsed container ------------------------
 
 @dataclass
 class ParsedInput:
-    values_si: Dict[str, Decimal]
     remarks: List[str]
+    values_si: Dict[str, float]
 
+
+# ------------------------ controller ------------------------
 
 class InputController:
-    """Универсальная обработка входных данных.
-    - parse(data): извлекает и конвертирует значения в SI.
-    - prepare_params(data): формирует PreparedController для расчёта
-      (проверяя наличие обязательных полей для конкретного сценария).
+    """Парсер входа + подготовка параметров для PreparedController.
+
+    ВНИМАНИЕ: flowPackage игнорируется — расчёт всегда по одному сценарию.
     """
 
-    def __init__(self, spec: Iterable[FieldSpec] = DEFAULT_SPEC):
-        self.spec = tuple(spec)
+    def __init__(self) -> None:
+        self._last_parsed: Optional[ParsedInput] = None
 
-    # --------------- API ---------------
+    # ---- public API ----
+
     def parse(self, data: Dict[str, Any]) -> ParsedInput:
-        values: Dict[str, Decimal] = {}
         remarks: List[str] = []
+        out: Dict[str, float] = {}
 
-        for fs in self.spec:
-            path, raw = _first_existing(data, fs.candidates)
-            if path is None:
-                if fs.required:
-                    remarks.append(
-                        f"[WARN] Не найдено обязательное поле '{fs.name}' (пути: {', '.join(fs.candidates)})."
-                    )
-                else:
-                    remarks.append(
-                        f"[INFO] Поле '{fs.name}' не найдено (пути: {', '.join(fs.candidates)})."
-                    )
-                continue
+        def ok(name: str, path: Sequence[str], v_print: str) -> None:
+            remarks.append(f"[OK] {name} <- {'/'.join(path)} → {v_print}")
 
-            try:
-                val_si = _extract_number_or_unit(raw, default_unit=fs.default_unit, category=fs.category)
-                values[fs.name] = val_si
-                # Почему пишем remark: для последующей трассируемости входа.
-                remarks.append(f"[OK] {fs.name} <- {path} → {val_si} {fs.target_unit}")
-            except Exception as e:  # важно логировать
-                remarks.append(f"[ERR] {fs.name} <- {path}: {e}")
+        def miss(name: str, *alts: Sequence[str]) -> None:
+            remarks.append(f"[INFO] Поле '{name}' не найдено (пути: {', '.join('/'.join(a) for a in alts)}).")
 
-        return ParsedInput(values_si=values, remarks=remarks)
+        # --- pressures ---
+        p_abs_node, p_abs_path = _first(data,
+            ("physPackage", "physProperties", "p_abs"),
+            ("physPackage", "p_abs"),
+        )
+        p_abs = _as_pressure_pa(p_abs_node, "Pa")
+        if p_abs is not None:
+            out["p_abs"] = p_abs
+            ok("p_abs", p_abs_path, f"{p_abs:.6g} Pa")
 
-    def prepare_params(self, data: Dict[str, Any]) -> "PreparedController":  # type: ignore[name-defined]
-        parsed = self.parse(data)
-        v = parsed.values_si
+        p_atm_node, p_atm_path = _first(data,
+            ("physPackage", "physProperties", "p_atm"),
+            ("physPackage", "p_atm"),
+        )
+        p_atm = _as_pressure_pa(p_atm_node, "Pa")
+        if p_atm is not None:
+            out["p_atm"] = p_atm
+            ok("p_atm", p_atm_path, f"{p_atm:.2f} Pa")
+        else:
+            miss("p_atm", ("physPackage", "physProperties", "p_atm"), ("physPackage", "p_atm"))
 
-        # Жёсткая валидация под базовый кейс расчёта (например, pTZ по диафрагме):
-        # d20, D20, p_abs, dp, T — обязательны.
-        missing: List[str] = [k for k in ("d20", "D20", "p_abs", "dp", "T") if k not in v]
-        if missing:
-            tips = ", ".join(missing)
-            context = "\n".join(parsed.remarks)
-            raise ValueError(
-                f"Отсутствуют обязательные поля для расчёта: {tips}.\nТрассировка:\n{context}"
-            )
+        p_st_node, p_st_path = _first(data,
+            ("physPackage", "physProperties", "p_st"),
+            ("physPackage", "p_st"),
+        )
+        p_st = _as_pressure_pa(p_st_node, "Pa")
+        if p_st is not None:
+            out["p_st"] = p_st
+            ok("p_st", p_st_path, f"{p_st:.6g} Pa")
+        else:
+            miss("p_st", ("physPackage", "physProperties", "p_st"), ("physPackage", "p_st"))
 
-        d_m = float(v["d20"])  # м
-        D_m = float(v["D20"])  # м
-        p1_pa = float(v["p_abs"])  # Па
-        dp_pa = float(v["dp"])  # Па
-        t_c = float(v["T"])  # °C
+        dp_node, dp_path = _first(data,
+            ("physPackage", "physProperties", "dp"),
+            ("physPackage", "dp"),
+        )
+        dp = _as_pressure_pa(dp_node, "Pa")
+        if dp is not None:
+            out["dp"] = dp
+            ok("dp", dp_path, f"{dp:.6g} Pa")
 
-        # Подхватываем необязательные (если есть):
-        R = 8.314
-        Z = 1.0
-        if "R" in v:
-            R = float(v["R"])
-        if "Z" in v:
-            Z = float(v["Z"])
+        # --- temperatures ---
+        T_node, T_path = _first(data,
+            ("physPackage", "physProperties", "T"),
+            ("physPackage", "T"),
+        )
+        T = _as_temp_c(T_node, "C")
+        if T is not None:
+            out["T"] = T
+            ok("T", T_path, f"{T:.6g} C")
 
-        # Импортируем локально, чтобы не тянуть лишнее при простом парсе
-        from controllers.prepare_controller import PreparedController  # noqa: WPS433
+        Tst_node, Tst_path = _first(data,
+            ("physPackage", "physProperties", "T_st"),
+            ("physPackage", "T_st"),
+        )
+        Tst = _as_temp_c(Tst_node, "C")
+        if Tst is not None:
+            out["T_st"] = Tst
+            ok("T_st", Tst_path, f"{Tst:.6g} C")
+        else:
+            miss("T_st", ("physPackage", "physProperties", "T_st"), ("physPackage", "T_st"))
+
+        # --- lengths (mm→m) ---
+        d20_node, d20_path = _first(data,
+            ("lenPackage", "lenProperties", "d20"),
+            ("flowdata", "constrictor_params", "d20"),  # если legacy
+        )
+        d20 = _as_length_m(d20_node, "mm")
+        if d20 is not None:
+            out["d20"] = d20
+            ok("d20", d20_path, f"{d20:.3f} m")
+
+        D20_node, D20_path = _first(data,
+            ("lenPackage", "lenProperties", "D"),
+            ("lenPackage", "lenProperties", "D20"),
+            ("flowdata", "constrictor_params", "D20"),
+            ("flowdata", "constrictor_params", "D"),
+        )
+        D20 = _as_length_m(D20_node, "mm")
+        if D20 is not None:
+            out["D20"] = D20
+            ok("D20", D20_path, f"{D20:.3f} m")
+
+        # ВНИМАНИЕ: flowPackage игнорируем — никаких q_v/q_st тут больше нет.
+
+        parsed = ParsedInput(remarks=remarks, values_si=out)
+        self._last_parsed = parsed
+        return parsed
+
+    def prepare_params(self, data: Dict[str, Any]) -> PreparedController:
+        if not self._last_parsed:
+            # в случае прямого вызова без parse()
+            self.parse(data)
+        assert self._last_parsed is not None
+        v = self._last_parsed.values_si
+
+        # R, Z — берём как есть (если есть), иначе дефолты
+        phys = (data.get("physPackage") or {}).get("physProperties", {})
+        R = phys.get("R", 8.314)
+        Z = phys.get("Z", 1.0)
+
+        # базовые проверки
+        d_m = float(v.get("d20", 0.0))
+        D_m = float(v.get("D20", 0.0))
+        p_pa = float(v.get("p_abs", 0.0))
+        dp_pa = float(v.get("dp", 0.0))
+        t_c = float(v.get("T", 0.0))
 
         if not (d_m > 0 and D_m > 0 and d_m < D_m):
-            context = "\n".join(parsed.remarks)
-            raise ValueError(
-                f"Некорректные диаметры: d20={d_m} м, D20={D_m} м (ожидается 0 < d < D).\nТрассировка:\n{context}"
-            )
-        if p1_pa <= 0 or dp_pa <= 0:
-            context = "\n".join(parsed.remarks)
-            raise ValueError(
-                f"Давления должны быть > 0 Па (p_abs={p1_pa}, dp={dp_pa}).\nТрассировка:\n{context}"
-            )
+            raise ValueError(f"Некорректные диаметры: d20={d_m} м, D20={D_m} м")
+        if p_pa <= 0:
+            raise ValueError("Давление p_abs должно быть > 0 Па")
+        if dp_pa <= 0:
+            raise ValueError("Перепад давления dp должен быть > 0 Па")
 
         return PreparedController(
             d=d_m,
             D=D_m,
-            p1=p1_pa,
+            p1=p_pa,
             t1=t_c,
             dp=dp_pa,
             R=R,
             Z=Z,
         )
-
-
-# --------------------------- Демонстрация на текущем примере ---------------------------
-if __name__ == "__main__":
-    # Пример из сообщения (сокращён до используемых полей):
-    sample = {
-        "flowPackage": {
-            "flowProperties": {
-                "q_v": {"real": 50, "unit": "m3_h"}
-            },
-            "request": {"extraTypeOfCalc": "Direct", "typeOfCalc": "pTZ"}
-        },
-        "physPackage": {
-            "physProperties": {
-                "T": {"real": 15, "unit": "C"},
-                "T_st": {"real": 20, "unit": "C"},
-                "p_abs": {"real": 4, "unit": "MPa"},
-                "p_atm": {"real": 760, "unit": "mm_Hg"},
-                "p_st": {"real": 0.101325, "unit": "MPa"}
-            }
-        },
-        "lenPackage": {
-            "lenProperties": {
-                # Допустим, сюда придут диаметры позже:
-                "d20": {"real": 100, "unit": "mm"},
-                "D": {"real": 300, "unit": "mm"}
-            }
-        }
-    }
-
-    ic = InputController()
-    parsed = ic.parse(sample)
-    for r in parsed.remarks:
-        print(r)
-    print("VALUES_SI:", parsed.values_si)
-
-    # Для демонстрации prepare_params добавим dp:
-    sample["physPackage"]["physProperties"]["dp"] = {"real": 20, "unit": "kPa"}
-    prepared = ic.prepare_params(sample)
-    print(prepared)

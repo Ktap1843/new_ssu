@@ -1,31 +1,29 @@
 {
   "meta": {
-    "ts": "2025-09-02T09:29:02.159639Z",
+    "ts": "2025-09-02T11:10:13.887218Z",
     "input": "inputdata\\sharp_01.json",
     "type": "sharp",
     "methodic": "otHER",
     "controller": "CalculationController"
   },
   "remarks": [
-    "[OK] p_abs <- physPackage.physProperties.p_abs → 4E+6 Pa",
-    "[OK] p_atm <- physPackage.physProperties.p_atm → 101323.20 Pa",
-    "[OK] p_st <- physPackage.physProperties.p_st → 101325 Pa",
-    "[OK] T <- physPackage.physProperties.T → 15 C",
-    "[OK] T_st <- physPackage.physProperties.T_st → 20 C",
-    "[OK] q_v <- flowPackage.flowProperties.q_v → 0.01388888888888888888888888889 m3/s",
-    "[INFO] Поле 'q_st' не найдено (пути: flowPackage.flowProperties.q_st, flowPackage.q_st).",
-    "[OK] d20 <- lenPackage.lenProperties.d20 → 0.020 m",
-    "[OK] D20 <- lenPackage.lenProperties.D → 0.050 m",
-    "[OK] dp <- physPackage.physProperties.dp → 2.0E+4 Pa"
+    "[OK] p_abs <- physPackage/physProperties/p_abs → 4e+06 Pa",
+    "[OK] p_atm <- physPackage/physProperties/p_atm → 101323.20 Pa",
+    "[OK] p_st <- physPackage/physProperties/p_st → 101325 Pa",
+    "[OK] dp <- physPackage/physProperties/dp → 20000 Pa",
+    "[OK] T <- physPackage/physProperties/T → 15 C",
+    "[OK] T_st <- physPackage/physProperties/T_st → 20 C",
+    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.020 m",
+    "[OK] D20 <- lenPackage/lenProperties/D → 0.050 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x00000243CD238B90>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000022061750250>",
   "result": {
     "status": "ok",
     "steps": [
       "_create_orifice",
       "_calculate_flow"
     ],
-    "orifice": "<orifices_classes.sharp_edge_orifice.SharpEdgeOrifice object at 0x00000243CD364050>",
+    "orifice": "<orifices_classes.sharp_edge_orifice.SharpEdgeOrifice object at 0x00000220616FE350>",
     "adapter_debug": {
       "construct_attempts": [
         "try: __init__()",
