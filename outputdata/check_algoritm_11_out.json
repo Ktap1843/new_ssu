@@ -1,0 +1,20 @@
+{
+  "valid_roughness": true,
+  "ssu_results": {
+    "beta": 0.5172413793103449,
+    "E_speed": 1.0378319521659682,
+    "straightness": null,
+    "C": 0.82,
+    "ssu_params": {},
+    "Epsilon": 0.9943826644440117,
+    "pressure_loss": 10042.241379310346
+  },
+  "flow_results": {
+    "mass_flow": 4708.68948732928,
+    "Re": 533204.6997252175,
+    "volume_flow_actual": 5.129291380532984,
+    "volume_flow_std": 5.338650212391474
+  },
+  "straightness_result": null,
+  "input_file": "check_algoritm_11.json"
+}

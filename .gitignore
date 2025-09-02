@@ -1,0 +1,12 @@
+*.idea
+/venv
+*.xlsx
+pdf
+
+
+
+/docs
+
+/docs/old_1.docx
+/flow_straightness/rd_saved_files_3_0_straightness/
+

@@ -1,0 +1,32 @@
+{
+  "descr": "2_file_check",
+  "flowdata": {
+    "constrictor_params": {
+      "d20": 30,
+      "D20": 100,
+      "d20_steel": "35l",
+      "D20_steel": "35l",
+      "Ra": 0.03,
+      "type": "conical",
+      "alpha": 25
+    },
+    "environment_parameters": {
+      "T": 19,
+      "p": 1600000,
+      "dp": 1000,
+      "pst": 101325,
+      "Tst": 20
+    },
+    "physical_properties": {
+      "methodic": "otHER",
+      "aggregate_state": "gas",
+      "Ro": 0.255,
+      "Roc": 0.245,
+      "k": 1.07,
+      "mu": 10.77
+    },
+    "straightness_params": {
+      "skip": true
+    }
+  }
+}
