@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "ts": "2025-09-02T06:54:53.328371Z",
+    "input": "inputdata\\1.json",
+    "type": "sharp",
+    "methodic": "otHER",
+    "controller": "CalculationController"
+  },
+  "remarks": [
+    "[OK] p_abs <- physPackage.physProperties.p_abs → 4E+6 Pa",
+    "[OK] p_atm <- physPackage.physProperties.p_atm → 101323.20 Pa",
+    "[OK] p_st <- physPackage.physProperties.p_st → 101325 Pa",
+    "[OK] T <- physPackage.physProperties.T → 15 C",
+    "[OK] T_st <- physPackage.physProperties.T_st → 20 C",
+    "[OK] q_v <- flowPackage.flowProperties.q_v → 0.01388888888888888888888888889 m3/s",
+    "[INFO] Поле 'q_st' не найдено (пути: flowPackage.flowProperties.q_st, flowPackage.q_st).",
+    "[OK] d20 <- lenPackage.lenProperties.d20 → 0.100 m",
+    "[OK] D20 <- lenPackage.lenProperties.D → 0.300 m",
+    "[OK] dp <- physPackage.physProperties.dp → 2.0E+4 Pa"
+  ],
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000019ABA12CC50>",
+  "result": {
+    "status": "stub",
+    "error": "CalculationController не обнаружен или не удалось сконструировать.",
+    "prepared": {
+      "d": 0.1,
+      "D": 0.3,
+      "p1": 4000000.0,
+      "t1": 15.0,
+      "dp": 20000.0,
+      "R": 8.314,
+      "Z": 1.0
+    },
+    "used_values_si": {
+      "p_abs": 4000000.0,
+      "p_atm": 101323.2,
+      "p_st": 101325.0,
+      "T": 15.0,
+      "T_st": 20.0,
+      "q_v": 0.013888888888888888,
+      "d20": 0.1,
+      "D20": 0.3,
+      "dp": 20000.0
+    }
+  }
+}
