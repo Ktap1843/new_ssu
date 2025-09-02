@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-02T12:24:14.095986Z",
+    "ts": "2025-09-02T13:02:04.149545Z",
     "input": "inputdata\\cone_01.json",
     "type": "cone",
     "methodic": "otHER",
@@ -16,68 +16,32 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.070 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000028E9DED4510>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001B06949B290>",
   "result": {
-    "status": "ok",
-    "steps": [
-      "_create_orifice",
-      "_calculate_flow"
-    ],
-    "orifice": "<orifices_classes.cone_flow_meter.ConeFlowMeter object at 0x0000028E9DED6A90>",
+    "status": "stub",
+    "error": "CalculationController не обнаружен или не удалось сконструировать.",
     "adapter_debug": {
       "construct_attempts": [
-        "try: __init__()",
-        "__init__() TypeError: CalculationController.__init__() missing 2 required positional arguments: 'data' and 'prepared_params'",
-        "try: __init__(**kw:['data', 'prepared_params'])",
-        "__init__(**kw) Exception: 'flowdata'",
-        "try: __init__(**kw_legacy:['data', 'prepared_params'])"
+        "CalculationController not importable"
       ],
       "skip_physics_due_to_methodic": true,
-      "methodic_value": "otHER",
-      "create_orifice_inputs": {
-        "constrictor_params": {
-          "d20": {
-            "real": 70,
-            "unit": "mm"
-          },
-          "D20": {
-            "real": 100,
-            "unit": "mm"
-          },
-          "d20_steel": "12x18n10t",
-          "D20_steel": "12x18n10t",
-          "type": "cone",
-          "Ra": 2.0
-        },
-        "environment_parameters": {
-          "p": 3200000.0,
-          "dp": 15000.0,
-          "T": 18.0
-        },
-        "straightness_params": {
-          "D": {
-            "real": 100,
-            "unit": "mm"
-          },
-          "DN": null,
-          "measSection": null,
-          "localResistance": null,
-          "lensCompliance": null,
-          "calc": false,
-          "check": false,
-          "usingCorrectionFactor": true,
-          "DLessThan1p": true
-        },
-        "physical_properties": {
-          "R": null,
-          "Z": null,
-          "k": 1.37,
-          "Roc": 0.64,
-          "aggregate_state": "gas",
-          "Ro": 0.72,
-          "mu": 19.0
-        }
-      }
+      "methodic_value": "otHER"
+    },
+    "prepared": {
+      "d": 0.07,
+      "D": 0.1,
+      "p1": 3200000.0,
+      "t1": 18.0,
+      "dp": 15000.0,
+      "R": 8.314,
+      "Z": 1.0
+    },
+    "used_values_si": {
+      "p_abs": 3200000.0,
+      "dp": 15000.0,
+      "T": 18.0,
+      "d20": 0.07,
+      "D20": 0.1
     }
   }
 }
