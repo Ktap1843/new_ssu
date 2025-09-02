@@ -2,8 +2,14 @@
 """
 Адаптер вызова CalculationController:
 - Создаёт контроллер с разными конструкторами (__init__).
-- Совместимость: если контроллер ждёт data["flowdata"], строим legacy-вид из raw/prepared/parsed.
-- Ищем метод run/dispatch/calculate/process и пробуем разные сигнатуры.
+- Совместимость с легаси: если контроллер ждёт data["flowdata"], собираем legacy-вид и пробуем снова.
+- Порядок вызовов:
+    1) run_calculations()
+    2) run() / dispatch() / calculate() / process()
+    3) Явная последовательность шагов по ctrlRequest.steps:
+       - "calculate_physics" (опционально)
+       - "create_orifice"
+       - "calculate_flow"
 """
 from __future__ import annotations
 
@@ -21,46 +27,27 @@ except Exception:
 # ----------------- helpers -----------------
 
 def _is_flowdata_keyerror(exc: BaseException) -> bool:
-    """True, если это KeyError('flowdata')."""
     return isinstance(exc, KeyError) and bool(exc.args) and exc.args[0] == "flowdata"
 
 
 def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: Any) -> Dict[str, Any]:
-    """
-    Строит legacy-структуру {"flowdata": {...}} из нашего формата.
-    Значения берём из raw, а при отсутствии — из prepared/parsed (в SI).
-    """
+    """Строит legacy-структуру {"flowdata": {...}} из нашего формата."""
     len_props = (((raw.get("lenPackage") or {}).get("lenProperties")) or {})
     phys_props = (((raw.get("physPackage") or {}).get("physProperties")) or {})
     flow_props = (((raw.get("flowPackage") or {}).get("flowProperties")) or {})
 
-    # Диаметры: если нет узлов с unit в исходнике — подставляем из prepared в мм.
     d20_node = len_props.get("d20") or {"real": float(prepared.d) * 1000.0, "unit": "mm"}
     D20_node = (len_props.get("D") or len_props.get("D20")) or {"real": float(prepared.D) * 1000.0, "unit": "mm"}
 
-    # Давления/температуры: оставляем «как есть» из исходника, иначе подставляем значения SI
-    p_node  = phys_props.get("p_abs") or float(prepared.p1)       # Па
-    dp_node = phys_props.get("dp")    or float(prepared.dp)       # Па
-    T_node  = phys_props.get("T")     or float(prepared.t1)       # °C
+    p_node  = phys_props.get("p_abs") or float(prepared.p1)  # Па
+    dp_node = phys_props.get("dp")    or float(prepared.dp)  # Па
+    T_node  = phys_props.get("T")     or float(prepared.t1)  # °C
 
     flowdata = {
-        "constrictor_params": {
-            "d20": d20_node,
-            "D20": D20_node,
-        },
-        "environment_parameters": {
-            "p": p_node,
-            "dp": dp_node,
-            "T": T_node,
-        },
-        "physical_properties": {
-            "R": phys_props.get("R"),
-            "Z": phys_props.get("Z"),
-        },
-        "flow_properties": {
-            "q_v": flow_props.get("q_v"),
-            "q_st": flow_props.get("q_st"),
-        },
+        "constrictor_params": {"d20": d20_node, "D20": D20_node},
+        "environment_parameters": {"p": p_node, "dp": dp_node, "T": T_node},
+        "physical_properties": {"R": phys_props.get("R"), "Z": phys_props.get("Z")},
+        "flow_properties": {"q_v": flow_props.get("q_v"), "q_st": flow_props.get("q_st")},
     }
     return {"flowdata": flowdata}
 
@@ -75,18 +62,14 @@ def _build_init_kwargs(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any
         return {}
 
     candidates = {
-        # сырой вход
         "data": raw, "raw": raw, "input": raw, "input_data": raw, "request": raw,
-        # подготовленные параметры
         "prepared": prepared, "prepared_params": prepared, "prepared_data": prepared, "params": prepared,
-        # распарсенные SI-значения
         "parsed": parsed, "values": parsed, "values_si": parsed, "parsed_values": parsed,
-        # общий контекст
         "context": {"prepared": prepared, "parsed": parsed, "raw": raw},
     }
 
     kwargs: Dict[str, Any] = {}
-    for name, param in sig.parameters.items():
+    for name in sig.parameters.keys():
         if name == "self":
             continue
         if name in candidates:
@@ -95,12 +78,11 @@ def _build_init_kwargs(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any
 
 
 def _try_construct(args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> Any:
-    """Вспомогательный конструктор с пробросом KeyError наверх."""
     return CalculationController(*args, **kwargs)  # type: ignore[misc]
 
 
 def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) -> Optional[Any]:
-    """Создаёт экземпляр контроллера: 0-арг, kwargs, популярные позиционные; при KeyError('flowdata') подменяем raw→legacy."""
+    """Создаёт экземпляр контроллера. При KeyError('flowdata') подменяем raw → legacy и повторяем попытки."""
     if not _HAVE_CALC_CTRL or CalculationController is None:
         return None
 
@@ -113,13 +95,12 @@ def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str
         pass
     except Exception as e:
         if _is_flowdata_keyerror(e):
-            # Пробуем передать legacy как data через kwargs
             try:
                 return _try_construct((), {"data": legacy})
             except Exception:
                 pass
 
-    # 2) kwargs по сигнатуре
+    # 2) kwargs
     kw = _build_init_kwargs(prepared, parsed, raw)
     if kw:
         try:
@@ -128,7 +109,6 @@ def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str
             pass
         except Exception as e:
             if _is_flowdata_keyerror(e):
-                # Подменяем все возможные ключи «сырого входа» на legacy
                 for key in ("data", "raw", "input", "input_data", "request"):
                     if key in kw:
                         kw[key] = legacy
@@ -137,13 +117,13 @@ def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str
                 except Exception:
                     pass
 
-    # 3) частые позиционные подписи (и их legacy-варианты)
+    # 3) позиционные
     combos = [
-        (("raw", "prepared"), {}),              # (data, prepared_params)
-        (("prepared", "raw"), {}),              # (prepared_params, data)
-        (("prepared", "parsed", "raw"), {}),    # (prepared, parsed, raw)
-        (("raw",), {}),                         # (data,)
-        (("prepared",), {}),                    # (prepared_params,)
+        (("raw", "prepared"), {}),
+        (("prepared", "raw"), {}),
+        (("prepared", "parsed", "raw"), {}),
+        (("raw",), {}),
+        (("prepared",), {}),
     ]
     valmap = {"raw": raw, "prepared": prepared, "parsed": parsed}
     for names, kwd in combos:
@@ -154,7 +134,6 @@ def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str
             continue
         except Exception as e:
             if _is_flowdata_keyerror(e):
-                # Подменяем raw на legacy и пробуем ещё раз
                 args_legacy = tuple(legacy if n == "raw" else valmap[n] for n in names)
                 try:
                     return _try_construct(args_legacy, kwd)
@@ -162,6 +141,24 @@ def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str
                     continue
 
     return None
+
+
+def _collect_state(ctrl: Any) -> Dict[str, Any]:
+    """Пытаемся собрать итог из контроллера после ручных шагов."""
+    out: Dict[str, Any] = {}
+    for name in ("orifice", "orifice_data", "orifice_result"):
+        if hasattr(ctrl, name):
+            out["orifice"] = getattr(ctrl, name)
+            break
+    for name in ("flow", "flow_result", "flow_data"):
+        if hasattr(ctrl, name):
+            out["flow"] = getattr(ctrl, name)
+            break
+    for name in ("result", "output"):
+        if hasattr(ctrl, name):
+            out["summary"] = getattr(ctrl, name)
+            break
+    return out
 
 
 # ----------------- public API -----------------
@@ -179,20 +176,54 @@ def run_calculation(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) 
             "used_values_si": {k: float(v) for k, v in parsed.items()},
         }
 
-    # поддержка нескольких API-методов
+    # 1) Полный сценарий, если у контроллера есть run_calculations()
+    if hasattr(ctrl, "run_calculations"):
+        try:
+            return ctrl.run_calculations()
+        except TypeError:
+            # вдруг нужен prepared/parsed/raw
+            try:
+                return ctrl.run_calculations(prepared=prepared, parsed=parsed, raw=raw)
+            except TypeError:
+                pass
+
+    # 2) API-методы run/dispatch/calculate/process
     for meth_name in ("run", "dispatch", "calculate", "process"):
         if hasattr(ctrl, meth_name):
             meth = getattr(ctrl, meth_name)
-            # именованные:
+            # именованные
             try:
                 return meth(prepared=prepared, parsed=parsed, raw=raw)
             except TypeError:
                 pass
-            # позиционные:
+            # позиционные
             for args in ((prepared, parsed, raw), (prepared, raw), (prepared,)):
                 try:
                     return meth(*args)
                 except TypeError:
                     continue
 
-    return {"status": "error", "error": "Метод CalculationController не найден (run/dispatch/calculate/process)."}
+    # 3) Ручной сценарий по ctrlRequest.steps
+    steps = (raw.get("ctrlRequest") or {}).get("steps") or ["create_orifice", "calculate_flow"]
+    status = {"status": "ok", "steps": []}
+
+    def _call(name: str) -> None:
+        if hasattr(ctrl, name):
+            getattr(ctrl, name)()
+            status["steps"].append(name)
+        else:
+            status["steps"].append(f"{name}:missing")
+
+    # по запросу можно включить calculate_physics
+    if "calculate_physics" in steps and hasattr(ctrl, "_calculate_physics"):
+        _call("_calculate_physics")
+
+    if "create_orifice" in steps and hasattr(ctrl, "_create_orifice"):
+        _call("_create_orifice")
+
+    if "calculate_flow" in steps and hasattr(ctrl, "_calculate_flow"):
+        _call("_calculate_flow")
+
+    state = _collect_state(ctrl)
+    status.update(state)
+    return status

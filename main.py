@@ -29,7 +29,6 @@ def _load_json(path: Path) -> Dict[str, Any]:
 
 
 def _json_default(obj: Any) -> Any:
-    """JSON-сериализация для нестандартных типов (dataclass, Decimal, Path, set, ...)."""
     if is_dataclass(obj):
         return asdict(obj)
     if isinstance(obj, Decimal):
@@ -43,7 +42,6 @@ def _json_default(obj: Any) -> Any:
             return obj.to_dict()
         except Exception:
             pass
-    # последний шанс — строковое представление (чтобы не падать на типах контроллера)
     return str(obj)
 
 
@@ -83,7 +81,7 @@ def main() -> int:
         },
         "remarks": parsed.remarks,
         "prepared": asdict(prepared) if is_dataclass(prepared) else prepared,
-        "result": calc,  # может содержать dataclass — обработаем в _json_default
+        "result": calc,
     }
 
     logger.info("Запись результата: %s", args.output)

@@ -1,6 +1,8 @@
-
 {
   "type": "sharp",
+  "ctrlRequest": {
+    "steps": ["create_orifice", "calculate_flow"]
+  },
   "flowPackage": {
     "flowProperties": {
       "q_v": { "real": 50, "unit": "m3_h" }
