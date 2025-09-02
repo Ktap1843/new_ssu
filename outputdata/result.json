@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-02T07:10:09.930460Z",
+    "ts": "2025-09-02T09:01:26.608312Z",
     "input": "inputdata\\1.json",
     "type": "sharp",
     "methodic": "otHER",
@@ -14,55 +14,75 @@
     "[OK] T_st <- physPackage.physProperties.T_st → 20 C",
     "[OK] q_v <- flowPackage.flowProperties.q_v → 0.01388888888888888888888888889 m3/s",
     "[INFO] Поле 'q_st' не найдено (пути: flowPackage.flowProperties.q_st, flowPackage.q_st).",
-    "[OK] d20 <- lenPackage.lenProperties.d20 → 0.100 m",
-    "[OK] D20 <- lenPackage.lenProperties.D → 0.300 m",
+    "[OK] d20 <- lenPackage.lenProperties.d20 → 0.020 m",
+    "[OK] D20 <- lenPackage.lenProperties.D → 0.050 m",
     "[OK] dp <- physPackage.physProperties.dp → 2.0E+4 Pa"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001EE0FED9090>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000021AD3E8D7D0>",
   "result": {
-    "status": "stub",
-    "error": "CalculationController не обнаружен или не удалось сконструировать.",
+    "status": "ok",
+    "steps": [
+      "_create_orifice",
+      "_calculate_flow"
+    ],
+    "orifice": "<orifices_classes.sharp_edge_orifice.SharpEdgeOrifice object at 0x0000021AD3E8C1D0>",
     "adapter_debug": {
       "construct_attempts": [
         "try: __init__()",
         "__init__() TypeError: CalculationController.__init__() missing 2 required positional arguments: 'data' and 'prepared_params'",
         "try: __init__(**kw:['data', 'prepared_params'])",
         "__init__(**kw) Exception: 'flowdata'",
-        "try: __init__(**kw_legacy:['data', 'prepared_params'])",
-        "__init__(**kw_legacy) Exception: 'straightness_params'",
-        "try: __init__('raw', 'prepared')",
-        "__init__('raw', 'prepared') Exception: 'flowdata'",
-        "try: __init__('raw', 'prepared')_legacy(raw→legacy)",
-        "__init__('raw', 'prepared')_legacy Exception: 'straightness_params'",
-        "try: __init__('prepared', 'raw')",
-        "__init__('prepared', 'raw') TypeError: 'PreparedController' object is not subscriptable",
-        "try: __init__('prepared', 'parsed', 'raw')",
-        "__init__('prepared', 'parsed', 'raw') TypeError: CalculationController.__init__() takes 3 positional arguments but 4 were given",
-        "try: __init__('raw',)",
-        "__init__('raw',) TypeError: CalculationController.__init__() missing 1 required positional argument: 'prepared_params'",
-        "try: __init__('prepared',)",
-        "__init__('prepared',) TypeError: CalculationController.__init__() missing 1 required positional argument: 'prepared_params'"
-      ]
-    },
-    "prepared": {
-      "d": 0.1,
-      "D": 0.3,
-      "p1": 4000000.0,
-      "t1": 15.0,
-      "dp": 20000.0,
-      "R": 8.314,
-      "Z": 1.0
-    },
-    "used_values_si": {
-      "p_abs": 4000000.0,
-      "p_atm": 101323.2,
-      "p_st": 101325.0,
-      "T": 15.0,
-      "T_st": 20.0,
-      "q_v": 0.013888888888888888,
-      "d20": 0.1,
-      "D20": 0.3,
-      "dp": 20000.0
+        "try: __init__(**kw_legacy:['data', 'prepared_params'])"
+      ],
+      "skip_physics_due_to_methodic": true,
+      "methodic_value": "otHER",
+      "create_orifice_inputs": {
+        "constrictor_params": {
+          "d20": {
+            "real": 20,
+            "unit": "mm"
+          },
+          "D20": {
+            "real": 50,
+            "unit": "mm"
+          },
+          "d20_steel": "35l",
+          "D20_steel": "35l",
+          "type": "sharp",
+          "Ra": 3.0,
+          "e": 0.0005,
+          "Ed": 0.001,
+          "alpha": 35.0
+        },
+        "environment_parameters": {
+          "p": 4000000.0,
+          "dp": 20000.0,
+          "T": 15.0
+        },
+        "straightness_params": {
+          "D": {
+            "real": 50,
+            "unit": "mm"
+          },
+          "DN": null,
+          "measSection": null,
+          "localResistance": null,
+          "lensCompliance": null,
+          "calc": false,
+          "check": false,
+          "usingCorrectionFactor": true,
+          "DLessThan1p": true
+        },
+        "physical_properties": {
+          "R": null,
+          "Z": null,
+          "k": 1.47,
+          "Roc": 0.68,
+          "aggregate_state": "gas",
+          "Ro": 0.7,
+          "mu": 18.5
+        }
+      }
     }
   }
 }

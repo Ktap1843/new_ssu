@@ -8,6 +8,7 @@
   d20/D20/straightness_params.D оставляем узлами {real, unit} (мм).
   physical_properties: Ro, mu → ЧИСЛА (mu в μPa·s), R/Z — как в исходнике.
   ПРОБРАСЫВАЕМ МАРКИ СТАЛЕЙ: d20_steel и D20_steel (строки) в constrictor_params.
+  ДОБАВЛЯЕМ ГЕОМ.ПАРАМЕТРЫ ССУ: Ra (в μm), e, Ed (в м), alpha (град) → в constrictor_params.
 - Если methodic == "other" — физику не трогаем, запускаем _create_orifice() → _calculate_flow().
 - В result.adapter_debug возвращаем подробности конструирования и вход для _create_orifice().
 """
@@ -74,6 +75,58 @@ def _to_micro_pa_s(mu: Any) -> Optional[float]:
     return None
 
 
+def _to_m_length(val: Any) -> Optional[float]:
+    """Конвертирует длину в метры (m). Узлы: m/mm/cm/um; число → трактуем как метры.
+    Почему: e/Ed удобнее хранить в SI.
+    """
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    node = val.get("value", val) if isinstance(val, dict) else None
+    if not isinstance(node, dict):
+        return None
+    num = _extract_real(node)
+    unit = str(node.get("unit", "")).strip().lower()
+    if num is None:
+        return None
+    if unit in {"m", "meter", "metre"}:
+        return num
+    if unit in {"mm", "millimeter", "millimetre"}:
+        return num / 1000.0
+    if unit in {"cm", "centimeter", "centimetre"}:
+        return num / 100.0
+    if unit in {"um", "µm", "micrometer", "micrometre"}:
+        return num / 1_000_000.0
+    return num
+
+
+def _roughness_to_um(val: Any) -> Optional[float]:
+    """Конвертирует шероховатость Ra к микрометрам (μm).
+    Почему: _create_orifice делит Ra/1000 → мм, значит вход ожидается в μm.
+    """
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    node = val.get("value", val) if isinstance(val, dict) else None
+    if not isinstance(node, dict):
+        return None
+    num = _extract_real(node)
+    unit = str(node.get("unit", "")).strip().lower()
+    if num is None:
+        return None
+    if unit in {"um", "µm", "micrometer", "micrometre"}:
+        return num
+    if unit in {"mm", "millimeter", "millimetre"}:
+        return num * 1000.0
+    if unit in {"m", "meter", "metre"}:
+        return num * 1_000_000.0
+    return num
+
+
+# ----------------- builders -----------------
+
 def _build_straightness_params(raw: Dict[str, Any], prepared: Any) -> Dict[str, Any]:
     len_pkg = (raw.get("lenPackage") or {})
     lp = (len_pkg.get("lenProperties") or {})
@@ -97,11 +150,13 @@ def _build_straightness_params(raw: Dict[str, Any], prepared: Any) -> Dict[str, 
 
 def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: Any) -> Dict[str, Any]:
     """Формирует legacy-структуру для контроллера.
-    environment_parameters → ЧИСЛА (SI), остальное как описано выше. Прокидываем d20_steel/D20_steel.
+    environment_parameters → ЧИСЛА (SI), остальное как описано выше. Прокидываем d20_steel/D20_steel, Ra/e/Ed/alpha.
     """
     len_props = (((raw.get("lenPackage") or {}).get("lenProperties")) or {})
     phys_props = (((raw.get("physPackage") or {}).get("physProperties")) or {})
     flow_props = (((raw.get("flowPackage") or {}).get("flowProperties")) or {})
+    flowdata_raw = (raw.get("flowdata") or {})
+    cp_raw = (flowdata_raw.get("constrictor_params") or {})
 
     # d20/D20 — узлы мм
     d20_node = _pick_or(len_props.get("d20"), _node(float(prepared.d) * 1000.0, "mm"))
@@ -114,6 +169,7 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
         or len_props.get("d_steel")
         or len_props.get("d_20_steel")
         or len_props.get("D20_steel")
+        or cp_raw.get("d20_steel")
         or "20"
     )
     steel_D = (
@@ -121,6 +177,7 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
         or len_props.get("D_steel")
         or len_props.get("D_20_steel")
         or len_props.get("d20_steel")
+        or cp_raw.get("D20_steel")
         or steel_d
         or "20"
     )
@@ -145,19 +202,54 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
         "R": phys_props.get("R"),
         "Z": phys_props.get("Z"),
     }
+    # adiabatic index k
+    k_val = _extract_real(phys_props.get("k"))
+    if k_val is not None:
+        physical_props["k"] = k_val
+    # standard density Roc (optional alias)
+    roc_val = _extract_real(phys_props.get("Roc")) or _extract_real(phys_props.get("rho_st"))
+    if roc_val is not None:
+        physical_props["Roc"] = roc_val
+    # aggregate state/phase (default gas)
+    agg = phys_props.get("aggregate_state") or phys_props.get("phase") or "gas"
+    physical_props["aggregate_state"] = agg
+
     if ro_num is not None:
         physical_props["Ro"] = ro_num
     if mu_num is not None:
         physical_props["mu"] = mu_num
 
+    # дополнительные геом. параметры ССУ: Ra (μm), e/Ed (м), alpha (град)
+    ra_um = _roughness_to_um(len_props.get("Ra")) or _roughness_to_um(cp_raw.get("Ra"))
+    e_m = _to_m_length(len_props.get("e")) if len_props.get("e") is not None else _to_m_length(cp_raw.get("e"))
+    Ed_m = _to_m_length(len_props.get("Ed")) if len_props.get("Ed") is not None else _to_m_length(cp_raw.get("Ed"))
+    alpha_val = _extract_real(len_props.get("alpha")) if isinstance(len_props.get("alpha"), (dict,)) else (
+        float(len_props.get("alpha")) if isinstance(len_props.get("alpha"), (int, float)) else None
+    )
+    if alpha_val is None and "alpha" in cp_raw:
+        alpha_val = _extract_real(cp_raw.get("alpha")) or (
+            float(cp_raw.get("alpha")) if isinstance(cp_raw.get("alpha"), (int, float)) else None
+        )
+
+    cp: Dict[str, Any] = {
+        "d20": d20_node,
+        "D20": D20_node,
+        "d20_steel": steel_d,
+        "D20_steel": steel_D,
+        "type": (raw.get("type") or "sharp").lower(),
+    }
+    if ra_um is not None:
+        cp["Ra"] = ra_um
+    if e_m is not None:
+        cp["e"] = e_m
+    if Ed_m is not None:
+        cp["Ed"] = Ed_m
+    if alpha_val is not None:
+        cp["alpha"] = alpha_val
+
     flowdata = {
-        "constrictor_params": {
-            "d20": d20_node,
-            "D20": D20_node,
-            "d20_steel": steel_d,
-            "D20_steel": steel_D,
-            "type": (raw.get("type") or "sharp").lower(),
-        },
+        "constrictor_params": cp,
+        # КЛЮЧЕВОЕ: только числа в SI
         "environment_parameters": {"p": p_pa, "dp": dp_pa, "T": t_c},
         "physical_properties": physical_props,
         "flow_properties": {"q_v": flow_props.get("q_v"), "q_st": flow_props.get("q_st")},
@@ -172,6 +264,8 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
     }
     return legacy_top
 
+
+# ----------------- instantiate & run -----------------
 
 def _build_init_kwargs(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) -> Dict[str, Any]:
     if CalculationController is None:

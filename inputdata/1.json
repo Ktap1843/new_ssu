@@ -18,17 +18,24 @@
       "p_atm": { "real": 760, "unit": "mm_Hg" },
       "p_st":  { "real": 0.101325, "unit": "MPa" },
       "dp":    { "real": 20, "unit": "kPa" },
-      "Ro": 0.7,
+      "Ro": { "real": 0.7 },
+      "Roc": { "real": 0.68 },
+      "k": {"real": 1.47},
       "mu": { "real": 18.5, "unit": "uPa_s" }
     }
   },
 
   "lenPackage": {
     "lenProperties": {
-      "d20": { "real": 100, "unit": "mm" },
+      "d20": { "real": 20,  "unit": "mm" },
+      "D":   { "real": 50,  "unit": "mm" },
       "d20_steel": "35l",
-      "D":   { "real": 300, "unit": "mm" },
-      "D20_steel": "35l"
+      "D20_steel": "35l",
+
+      "Ra": { "real": 3.0, "unit": "um" },
+      "e":  { "real": 0.5, "unit": "mm" },
+      "Ed": { "real": 1.0, "unit": "mm" },
+      "alpha": 35
     },
     "request": { "calc": false, "check": false }
   }
