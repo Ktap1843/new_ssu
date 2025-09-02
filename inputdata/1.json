@@ -1,4 +1,3 @@
-# file: inputdata/1.json
 {
   "type": "sharp",
   "ctrlRequest": { "steps": ["create_orifice", "calculate_flow"] },
@@ -13,14 +12,12 @@
   "physPackage": {
     "physProperties": {
       "methodic": "otHER",
-
       "T":     { "real": 15, "unit": "C" },
       "T_st":  { "real": 20, "unit": "C" },
-      "p_abs": { "real": 4,  "unit": "MPa" },
+      "p_abs": { "real": 4, "unit": "MPa" },
       "p_atm": { "real": 760, "unit": "mm_Hg" },
       "p_st":  { "real": 0.101325, "unit": "MPa" },
       "dp":    { "real": 20, "unit": "kPa" },
-
       "Ro": 0.7,
       "mu": { "real": 18.5, "unit": "uPa_s" }
     }

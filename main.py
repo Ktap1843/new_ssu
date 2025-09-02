@@ -1,31 +1,48 @@
-# file: main.py
+
 from __future__ import annotations
 
-import argparse
 import json
-import logging
-from dataclasses import asdict, is_dataclass
-from datetime import datetime
-from decimal import Decimal
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, Dict
+import re
 
-try:
-    import logger_config  # noqa: F401
-    logger = logging.getLogger("new_ssu")
-    if not logger.handlers:
-        logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
-except Exception:
-    logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
-    logger = logging.getLogger("new_ssu")
+_COMMENT_BLOCK_RE = re.compile(r"/\*.*?\*/", re.S)
+_COMMENT_LINE_RE = re.compile(r"(^|[^:])//.*?$", re.M)
 
-from controllers.input_controller import InputController  # noqa: E402
-from controllers.calculation_adapter import run_calculation  # noqa: E402
+
+def _strip_json_comments(text: str) -> str:
+    """Удаляет C-подобные комментарии из JSON (/* ... */ и // ... до конца строки).
+    Важно: не использовать для production-конфигов с URL'ами вида "http://..." внутри строк.
+    """
+    # Удаляем блочные комментарии
+    text = _COMMENT_BLOCK_RE.sub("", text)
+    # Удаляем построчные комментарии, но не трогаем 'http://': матчим только если перед // нет двоеточия
+    text = _COMMENT_LINE_RE.sub(lambda m: m.group(1), text)
+    return text
 
 
 def _load_json(path: Path) -> Dict[str, Any]:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    raw = path.read_text(encoding="utf-8")
+    if not raw.strip():
+        raise RuntimeError(f"Пустой файл JSON: {path}")
+    try:
+        return json.loads(raw)
+    except JSONDecodeError:
+        # Попробуем как JSONC (с комментариями)
+        cleaned = _strip_json_comments(raw)
+        try:
+            return json.loads(cleaned)
+        except JSONDecodeError as e:
+            # Покажем контекст вокруг ошибки
+            start = max(e.pos - 60, 0)
+            end = min(e.pos + 60, len(cleaned))
+            snippet = cleaned[start:end].replace("\n", "\\n")
+            raise RuntimeError(
+                f"Ошибка парсинга JSON в {path}: {e.msg} (line {e.lineno}, col {e.colno}).\n"
+                f"Контекст вокруг позиции {e.pos}: '{snippet}'"
+            ) from e
+
 
 
 def _json_default(obj: Any) -> Any:
