@@ -28,16 +28,16 @@ class OrificeType(Enum):
     CONE = "cone"
 
 _mapping = {
-    OrificeType.SHARP:              SharpEdgeOrifice,
-    OrificeType.CONICAL:            ConicalInletOrifice,
-    OrificeType.WEAR:               WearResistantOrifice,
-    OrificeType.DOUBLE:             DoubleOrifice,
-    OrificeType.SEGMENT:            SegmentOrifice,
-    OrificeType.ECCENTRIC:          EccentricOrifice,
-    OrificeType.QUARTER:            QuarterCircleOrifice,
-    OrificeType.QUARTER_NOZZLE:     QuarterCircleNozzle,
-    OrificeType.CYLINDRICAL_NOZZLE: CylindricalNozzle,
-    OrificeType.WEDGE:              WedgeFlowMeter,
+    OrificeType.SHARP:              SharpEdgeOrifice,   #todo убираю при переносе
+    OrificeType.CONICAL:            ConicalInletOrifice,    #todo убираю при переносе
+    OrificeType.WEAR:               WearResistantOrifice,   #todo убираю при переносе
+    OrificeType.DOUBLE:             DoubleOrifice,  #todo убираю при переносе
+    OrificeType.SEGMENT:            SegmentOrifice, #todo убираю при переносе
+    OrificeType.ECCENTRIC:          EccentricOrifice,   #todo убираю при переносе
+    OrificeType.QUARTER:            QuarterCircleOrifice,   #todo убираю при переносе
+    OrificeType.QUARTER_NOZZLE:     QuarterCircleNozzle,    #todo убираю при переносе
+    OrificeType.CYLINDRICAL_NOZZLE: CylindricalNozzle,  #todo убираю при переносе
+    OrificeType.WEDGE:              WedgeFlowMeter, #todo убираю при переносе
     OrificeType.CONE:               ConeFlowMeter,
 }
 
@@ -52,6 +52,7 @@ def create_orifice(name: str | OrificeType, **kwargs):
         if k in sig.parameters and k != "self"
     }
     inst = cls(**init_args)
+    #todo сначала происходит проверка потом умножение на поправку!!!!!!!!!!!!!!!!!!!!
     if not inst.validate():
         raise ValueError(f"Валидация геометрии ССУ '{name.value}' не пройдена")
     return inst

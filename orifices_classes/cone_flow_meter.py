@@ -11,11 +11,13 @@ class ConeFlowMeter(BaseOrifice):
     def __init__(self, D: float, d: float, Re: float, alpha: float, **kwargs):
         super().__init__(D, d, Re)
         self.alpha = alpha
-        # β = d_k / D
-        self.set_beta(d / D)
+        # todo = d_k(делал как d -- нужно ли поправку по температуре делать) / D
+        self.beta = self._beta_from_geometry(d, D)
+
+    def _beta_from_geometry(self, d, D):
+        return (1 - (d/D)**2)**0.5
 
     def _validate(self) -> bool:
-        beta = self.calculate_beta()
         tests = []
 
         valid_D = 0.05 <= self.D <= 0.50
@@ -23,15 +25,15 @@ class ConeFlowMeter(BaseOrifice):
         if not valid_D:
             logger.warning(f"D={self.D * 1000:.1f} мм вне диапазона [50; 500] мм")
 
-        valid_beta = 0.45 <= beta <= 0.75
+        valid_beta = 0.45 <= self.beta <= 0.75
         tests.append(valid_beta)
         if not valid_beta:
-            logger.warning(f"β={beta:.3f} вне диапазона [0.45; 0.75]")
+            logger.warning(f"β={self.beta:.3f} вне диапазона [0.45; 0.75]")
 
-        valid_alpha = self.alpha is not None and 10 <= self.alpha <= 60
-        tests.append(valid_alpha)
-        if not valid_alpha:
-            logger.warning(f"угол α={self.alpha}° вне диапазона [10; 60]°")
+        # valid_alpha = self.alpha is not None and 10 <= self.alpha <= 60
+        # tests.append(valid_alpha)
+        # if not valid_alpha:
+        #     logger.warning(f"угол α={self.alpha}° вне диапазона [10; 60]°")
 
         return all(tests)
 
@@ -68,8 +70,8 @@ class ConeFlowMeter(BaseOrifice):
         if otn > 0.25:
             logger.error(f"dp/p = {otn:.2f} > 0.25 — недопустимо")
             raise ValueError("dp/p > 0.25")
-        beta = self.calculate_beta()
-        return 1 - (0.649 - 0.696 * beta**4) * otn
+
+        return 1 - (0.649 - 0.696 * self.beta**4) * otn
 
     # def expansion_coefficient_uncertainty(self, dp_p: float) -> float:
     #     """
@@ -81,5 +83,4 @@ class ConeFlowMeter(BaseOrifice):
         """
         Потери давления п.15.5
         """
-        beta = self.calculate_beta()
-        return (1.09 - 0.813 * beta) * dp
+        return (1.09 - 0.813 * self.beta) * dp

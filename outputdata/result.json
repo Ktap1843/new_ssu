@@ -1,31 +1,29 @@
 {
   "meta": {
-    "ts": "2025-09-02T09:24:38.049677Z",
-    "input": "timeless\\1.json",
-    "type": "sharp",
+    "ts": "2025-09-02T12:24:14.095986Z",
+    "input": "inputdata\\cone_01.json",
+    "type": "cone",
     "methodic": "otHER",
     "controller": "CalculationController"
   },
   "remarks": [
-    "[OK] p_abs <- physPackage.physProperties.p_abs → 4E+6 Pa",
-    "[OK] p_atm <- physPackage.physProperties.p_atm → 101323.20 Pa",
-    "[OK] p_st <- physPackage.physProperties.p_st → 101325 Pa",
-    "[OK] T <- physPackage.physProperties.T → 15 C",
-    "[OK] T_st <- physPackage.physProperties.T_st → 20 C",
-    "[OK] q_v <- flowPackage.flowProperties.q_v → 0.01388888888888888888888888889 m3/s",
-    "[INFO] Поле 'q_st' не найдено (пути: flowPackage.flowProperties.q_st, flowPackage.q_st).",
-    "[OK] d20 <- lenPackage.lenProperties.d20 → 0.020 m",
-    "[OK] D20 <- lenPackage.lenProperties.D → 0.050 m",
-    "[OK] dp <- physPackage.physProperties.dp → 2.0E+4 Pa"
+    "[OK] p_abs <- physPackage/physProperties/p_abs → 3.2e+06 Pa",
+    "[INFO] Поле 'p_atm' не найдено (пути: physPackage/physProperties/p_atm, physPackage/p_atm).",
+    "[INFO] Поле 'p_st' не найдено (пути: physPackage/physProperties/p_st, physPackage/p_st).",
+    "[OK] dp <- physPackage/physProperties/dp → 15000 Pa",
+    "[OK] T <- physPackage/physProperties/T → 18 C",
+    "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
+    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.070 m",
+    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CDD07223D0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000028E9DED4510>",
   "result": {
     "status": "ok",
     "steps": [
       "_create_orifice",
       "_calculate_flow"
     ],
-    "orifice": "<orifices_classes.sharp_edge_orifice.SharpEdgeOrifice object at 0x000001CDD07209D0>",
+    "orifice": "<orifices_classes.cone_flow_meter.ConeFlowMeter object at 0x0000028E9DED6A90>",
     "adapter_debug": {
       "construct_attempts": [
         "try: __init__()",
@@ -39,29 +37,26 @@
       "create_orifice_inputs": {
         "constrictor_params": {
           "d20": {
-            "real": 20,
+            "real": 70,
             "unit": "mm"
           },
           "D20": {
-            "real": 50,
+            "real": 100,
             "unit": "mm"
           },
-          "d20_steel": "35l",
-          "D20_steel": "35l",
-          "type": "sharp",
-          "Ra": 3.0,
-          "e": 0.0005,
-          "Ed": 0.001,
-          "alpha": 35.0
+          "d20_steel": "12x18n10t",
+          "D20_steel": "12x18n10t",
+          "type": "cone",
+          "Ra": 2.0
         },
         "environment_parameters": {
-          "p": 4000000.0,
-          "dp": 20000.0,
-          "T": 15.0
+          "p": 3200000.0,
+          "dp": 15000.0,
+          "T": 18.0
         },
         "straightness_params": {
           "D": {
-            "real": 50,
+            "real": 100,
             "unit": "mm"
           },
           "DN": null,
@@ -76,11 +71,11 @@
         "physical_properties": {
           "R": null,
           "Z": null,
-          "k": 1.47,
-          "Roc": 0.68,
+          "k": 1.37,
+          "Roc": 0.64,
           "aggregate_state": "gas",
-          "Ro": 0.7,
-          "mu": 18.5
+          "Ro": 0.72,
+          "mu": 19.0
         }
       }
     }

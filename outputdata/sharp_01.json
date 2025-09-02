@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-02T11:10:13.887218Z",
+    "ts": "2025-09-02T11:14:37.829278Z",
     "input": "inputdata\\sharp_01.json",
     "type": "sharp",
     "methodic": "otHER",
@@ -16,14 +16,14 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.020 m",
     "[OK] D20 <- lenPackage/lenProperties/D → 0.050 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000022061750250>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x00000246A9FF1710>",
   "result": {
     "status": "ok",
     "steps": [
       "_create_orifice",
       "_calculate_flow"
     ],
-    "orifice": "<orifices_classes.sharp_edge_orifice.SharpEdgeOrifice object at 0x00000220616FE350>",
+    "orifice": "<orifices_classes.sharp_edge_orifice.SharpEdgeOrifice object at 0x00000246A9FE5B50>",
     "adapter_debug": {
       "construct_attempts": [
         "try: __init__()",
