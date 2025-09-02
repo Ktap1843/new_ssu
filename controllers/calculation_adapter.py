@@ -7,6 +7,7 @@
   чтобы внутренняя математика контроллера не падала на узлах {real, unit}.
   d20/D20/straightness_params.D оставляем узлами {real, unit} (мм).
   physical_properties: Ro, mu → ЧИСЛА (mu в μPa·s), R/Z — как в исходнике.
+  ПРОБРАСЫВАЕМ МАРКИ СТАЛЕЙ: d20_steel и D20_steel (строки) в constrictor_params.
 - Если methodic == "other" — физику не трогаем, запускаем _create_orifice() → _calculate_flow().
 - В result.adapter_debug возвращаем подробности конструирования и вход для _create_orifice().
 """
@@ -96,7 +97,7 @@ def _build_straightness_params(raw: Dict[str, Any], prepared: Any) -> Dict[str, 
 
 def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: Any) -> Dict[str, Any]:
     """Формирует legacy-структуру для контроллера.
-    environment_parameters → ЧИСЛА (SI), остальное как описано выше.
+    environment_parameters → ЧИСЛА (SI), остальное как описано выше. Прокидываем d20_steel/D20_steel.
     """
     len_props = (((raw.get("lenPackage") or {}).get("lenProperties")) or {})
     phys_props = (((raw.get("physPackage") or {}).get("physProperties")) or {})
@@ -106,6 +107,23 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
     d20_node = _pick_or(len_props.get("d20"), _node(float(prepared.d) * 1000.0, "mm"))
     D20_src = len_props.get("D") or len_props.get("D20")
     D20_node = _pick_or(D20_src, _node(float(prepared.D) * 1000.0, "mm"))
+
+    # steel grades (strings) with safe fallbacks
+    steel_d = (
+        len_props.get("d20_steel")
+        or len_props.get("d_steel")
+        or len_props.get("d_20_steel")
+        or len_props.get("D20_steel")
+        or "20"
+    )
+    steel_D = (
+        len_props.get("D20_steel")
+        or len_props.get("D_steel")
+        or len_props.get("D_20_steel")
+        or len_props.get("d20_steel")
+        or steel_d
+        or "20"
+    )
 
     # environment_parameters → числа SI из prepared
     p_pa: float = float(prepared.p1)
@@ -133,8 +151,13 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
         physical_props["mu"] = mu_num
 
     flowdata = {
-        "constrictor_params": {"d20": d20_node, "D20": D20_node},
-        # КЛЮЧЕВОЕ: только числа в SI — это исправляет TypeError в _create_orifice
+        "constrictor_params": {
+            "d20": d20_node,
+            "D20": D20_node,
+            "d20_steel": steel_d,
+            "D20_steel": steel_D,
+        },
+        # КЛЮЧЕВОЕ: только числа в SI
         "environment_parameters": {"p": p_pa, "dp": dp_pa, "T": t_c},
         "physical_properties": physical_props,
         "flow_properties": {"q_v": flow_props.get("q_v"), "q_st": flow_props.get("q_st")},
