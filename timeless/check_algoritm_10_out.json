@@ -1,0 +1,18 @@
+{
+  "input_file": "check_algoritm_10.json",
+  "valid_roughness": true,
+  "ssu_results": {
+    "beta": 0.5897435897435898,
+    "E_speed": 1.0665873964529238,
+    "C": 0.716923076923077,
+    "ssu_params": {},
+    "Epsilon": 0.9921481423126295,
+    "pressure_loss": 9361.538461538463
+  },
+  "flow_results": {
+    "mass_flow": 2481.2145056230033,
+    "Re": 417851.1624209005,
+    "volume_flow_actual": 2.702848045340962,
+    "volume_flow_std": 2.813168373722226
+  }
+}

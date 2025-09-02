@@ -1,0 +1,22 @@
+{
+  "valid_roughness": true,
+  "ssu_results": {
+    "beta": 0.3,
+    "E_speed": 1.0040747710110163,
+    "straightness": null,
+    "C": 0.7503351926086133,
+    "ssu_params": {
+      "error": "Cannot cast array data from dtype('O') to dtype('float64') according to the rule 'safe'"
+    },
+    "Epsilon": 0.9996678252280369,
+    "pressure_loss": 871.1999999999999
+  },
+  "flow_results": {
+    "mass_flow": 43.280977953005205,
+    "Re": 14213.105505152418,
+    "volume_flow_actual": 0.04714703480719522,
+    "volume_flow_std": 0.04907140357483583
+  },
+  "straightness_result": null,
+  "input_file": "check_algoritm_2.json"
+}
