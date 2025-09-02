@@ -1,0 +1,30 @@
+{
+  "type": "wear",
+  "ctrlRequest": { "steps": ["create_orifice", "calculate_flow"] },
+  "flowPackage": {
+    "flowProperties": { "q_v": { "real": 60, "unit": "m3_h" } },
+    "request": { "extraTypeOfCalc": "Direct", "typeOfCalc": "pTZ" }
+  },
+  "physPackage": {
+    "physProperties": {
+      "methodic": "otHER",
+      "aggregate_state": "gas",
+      "T":     { "real": 12, "unit": "C" },
+      "p_abs": { "real": 2.0, "unit": "MPa" },
+      "dp":    { "real": 8, "unit": "kPa" },
+      "Ro": { "real": 0.68 },
+      "k":  { "real": 1.35 },
+      "mu": { "real": 17.5, "unit": "uPa_s" }
+    }
+  },
+  "lenPackage": {
+    "lenProperties": {
+      "d20": { "real": 150, "unit": "mm" },
+      "D":   { "real": 195, "unit": "mm" },
+      "d20_steel": "35l",
+      "D20_steel": "35l",
+      "Ra": { "real": 3, "unit": "um" }
+    },
+    "request": { "calc": false, "check": false }
+  }
+}
