@@ -3,6 +3,7 @@ import argparse
 import json
 from controllers.input_controller import InputController
 from controllers.calculation_controller import CalculationController
+from controllers.calculation_adapter import run_calculation
 from controllers.output_controller import OutputController
 from logger_config import get_logger
 
