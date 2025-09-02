@@ -59,7 +59,7 @@ class CalculationController:
             "p1": self.ep["p"],
             "Ra": self.cp.get("Ra", 0) / 1000,
             "alpha": self.cp.get("alpha", None),
-            "k": self.pp["k"]
+            "k": self.pp.get("k", None)
         }
 
         typ = OrificeType(self.cp.get("type", OrificeType.SHARP).lower())
