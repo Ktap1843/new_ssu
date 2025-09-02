@@ -62,7 +62,13 @@ class CalculationController:
             "k": self.pp.get("k", None)
         }
 
-        typ = OrificeType(self.cp.get("type", OrificeType.SHARP).lower())
+        typ_raw = self.cp.get("type", OrificeType.SHARP)
+        if isinstance(typ_raw, OrificeType):
+            typ = typ_raw
+        elif isinstance(typ_raw, str):
+            typ = OrificeType(typ_raw.strip().lower())
+        else:
+            typ = OrificeType.SHARP
         self.orifice = create_orifice(typ, **or_args)
         self.orifice.update_geometry_from_temp(self.params.d, self.params.D, alpha_CCU, alpha_T, self.ep["T"])
 

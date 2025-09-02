@@ -156,8 +156,8 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
             "D20": D20_node,
             "d20_steel": steel_d,
             "D20_steel": steel_D,
+            "type": (raw.get("type") or "sharp").lower(),
         },
-        # КЛЮЧЕВОЕ: только числа в SI
         "environment_parameters": {"p": p_pa, "dp": dp_pa, "T": t_c},
         "physical_properties": physical_props,
         "flow_properties": {"q_v": flow_props.get("q_v"), "q_st": flow_props.get("q_st")},
