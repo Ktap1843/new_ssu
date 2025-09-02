@@ -1,0 +1,37 @@
+{
+  "type": "sharp",
+  "ctrlRequest": { "steps": ["create_orifice", "calculate_flow"] },
+  "flowPackage": {
+    "flowProperties": { "q_v": { "real": 50, "unit": "m3_h" } },
+    "request": { "extraTypeOfCalc": "Direct", "typeOfCalc": "pTZ" }
+  },
+  "physPackage": {
+    "physProperties": {
+      "methodic": "otHER",
+      "aggregate_state": "gas",
+      "T":     { "real": 15, "unit": "C" },
+      "T_st":  { "real": 20, "unit": "C" },
+      "p_abs": { "real": 4, "unit": "MPa" },
+      "p_atm": { "real": 760, "unit": "mm_Hg" },
+      "p_st":  { "real": 0.101325, "unit": "MPa" },
+      "dp":    { "real": 20, "unit": "kPa" },
+      "Ro": { "real": 0.7 },
+      "Roc": { "real": 0.68 },
+      "k": { "real": 1.4 },
+      "mu": { "real": 18.5, "unit": "uPa_s" }
+    }
+  },
+  "lenPackage": {
+    "lenProperties": {
+      "d20": { "real": 20, "unit": "mm" },
+      "D":   { "real": 50, "unit": "mm" },
+      "d20_steel": "35l",
+      "D20_steel": "35l",
+      "Ra": { "real": 3.0, "unit": "um" },
+      "e":  { "real": 0.5, "unit": "mm" },
+      "Ed": { "real": 1.0, "unit": "mm" },
+      "alpha": 35
+    },
+    "request": { "calc": false, "check": false }
+  }
+}

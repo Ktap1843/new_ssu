@@ -1,3 +1,4 @@
+# file: main.py
 from __future__ import annotations
 
 import argparse
@@ -7,7 +8,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Iterable
 from json import JSONDecodeError
 
 from logger_config import get_logger  # используем ТОЛЬКО ваш логгер во всём проекте
@@ -20,9 +21,7 @@ _COMMENT_LINE_RE = re.compile(r"(^|[^:])//.*?$", re.M)
 
 
 def _strip_json_comments(text: str) -> str:
-    """Удаляет C-подобные комментарии из JSON (/* ... */ и // ... до конца строки).
-    Важно: не применять на строках, где осознанно нужны // внутри значений.
-    """
+    """Удаляет C-подобные комментарии из JSON (/* ... */ и // ... до конца строки)."""
     text = _COMMENT_BLOCK_RE.sub("", text)
     text = _COMMENT_LINE_RE.sub(lambda m: m.group(1), text)
     return text
@@ -41,9 +40,9 @@ def _load_json(path: Path) -> Dict[str, Any]:
         except JSONDecodeError as e:
             start = max(e.pos - 60, 0)
             end = min(e.pos + 60, len(cleaned))
-            snippet = cleaned[start:end].replace("\n", "\\n")
+            snippet = cleaned[start:end].replace("", "\n")
             raise RuntimeError(
-                f"Ошибка парсинга JSON в {path}: {e.msg} (line {e.lineno}, col {e.colno}).\n"
+                f"Ошибка парсинга JSON в {path}: {e.msg} (line {e.lineno}, col {e.colno})."
                 f"Контекст вокруг позиции {e.pos}: '{snippet}'"
             ) from e
 
@@ -77,14 +76,9 @@ from controllers.input_controller import InputController  # noqa: E402
 from controllers.calculation_adapter import run_calculation  # noqa: E402
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description="Запуск расчёта new_ssu")
-    ap.add_argument("--input", type=Path, default=Path("inputdata/1.json"))
-    ap.add_argument("--output", type=Path, default=Path("outputdata/result.json"))
-    args = ap.parse_args()
-
-    logger.info("Чтение входа: %s", args.input)
-    data = _load_json(args.input)
+def _process_one(input_path: Path, output_path: Path) -> None:
+    logger.info("Чтение входа: %s", input_path)
+    data = _load_json(input_path)
 
     ic = InputController()
     parsed = ic.parse(data)
@@ -101,7 +95,7 @@ def main() -> int:
     out = {
         "meta": {
             "ts": datetime.utcnow().isoformat() + "Z",
-            "input": str(args.input),
+            "input": str(input_path),
             "type": data.get("type"),
             "methodic": (data.get("physPackage") or {}).get("physProperties", {}).get("methodic"),
             "controller": "CalculationController",
@@ -111,8 +105,48 @@ def main() -> int:
         "result": calc,
     }
 
-    logger.info("Запись результата: %s", args.output)
-    _dump_json(args.output, out)
+    logger.info("Запись результата: %s", output_path)
+    _dump_json(output_path, out)
+
+
+def _iter_inputs(base: Path, pattern: str) -> Iterable[Path]:
+    # rglob, чтобы поддержать вложенные папки
+    yield from base.rglob(pattern)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Запуск расчёта new_ssu")
+    ap.add_argument("--input", type=Path, default=Path("inputdata/1.json"),
+                    help="входной JSON или директория с JSON-файлами")
+    ap.add_argument("--output", type=Path, default=Path("outputdata/result.json"),
+                    help="файл результата (для одиночного запуска)")
+    ap.add_argument("--outdir", type=Path, default=Path("outputdata"),
+                    help="каталог результатов (для пакетного запуска по директории)")
+    ap.add_argument("--glob", type=str, default="*.json",
+                    help="маска поиска JSON в режиме каталога (rglob)")
+    args = ap.parse_args()
+
+    if args.input.is_dir():
+        # Пакетный режим: перебираем все файлы, сохраняем зеркально в outdir
+        base_in: Path = args.input
+        base_out: Path = args.outdir
+        logger.info("Пакетный запуск: dir=%s, glob=%s → outdir=%s", base_in, args.glob, base_out)
+        count = 0
+        for src in _iter_inputs(base_in, args.glob):
+            if not src.is_file():
+                continue
+            rel = src.relative_to(base_in)
+            dst = base_out / rel
+            try:
+                _process_one(src, dst)
+                count += 1
+            except Exception as e:
+                logger.exception("Ошибка при обработке %s: %s", src, e)
+        logger.info("Готово. Успешно обработано файлов: %d", count)
+        return 0
+
+    # Одиночный режим
+    _process_one(args.input, args.output)
     logger.info("Готово.")
     return 0
 
