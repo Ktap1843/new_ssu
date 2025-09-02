@@ -1,23 +1,30 @@
-
+# file: main.py
 from __future__ import annotations
 
+import argparse
 import json
-from json import JSONDecodeError
+import re
+from dataclasses import asdict, is_dataclass
+from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict
-import re
+from json import JSONDecodeError
 
+from logger_config import get_logger  # используем ТОЛЬКО ваш логгер во всём проекте
+
+logger = get_logger("Main")  # модульный логгер
+
+# --- JSON utils -------------------------------------------------------------
 _COMMENT_BLOCK_RE = re.compile(r"/\*.*?\*/", re.S)
 _COMMENT_LINE_RE = re.compile(r"(^|[^:])//.*?$", re.M)
 
 
 def _strip_json_comments(text: str) -> str:
     """Удаляет C-подобные комментарии из JSON (/* ... */ и // ... до конца строки).
-    Важно: не использовать для production-конфигов с URL'ами вида "http://..." внутри строк.
+    Важно: не применять на строках, где осознанно нужны // внутри значений.
     """
-    # Удаляем блочные комментарии
     text = _COMMENT_BLOCK_RE.sub("", text)
-    # Удаляем построчные комментарии, но не трогаем 'http://': матчим только если перед // нет двоеточия
     text = _COMMENT_LINE_RE.sub(lambda m: m.group(1), text)
     return text
 
@@ -29,12 +36,10 @@ def _load_json(path: Path) -> Dict[str, Any]:
     try:
         return json.loads(raw)
     except JSONDecodeError:
-        # Попробуем как JSONC (с комментариями)
         cleaned = _strip_json_comments(raw)
         try:
             return json.loads(cleaned)
         except JSONDecodeError as e:
-            # Покажем контекст вокруг ошибки
             start = max(e.pos - 60, 0)
             end = min(e.pos + 60, len(cleaned))
             snippet = cleaned[start:end].replace("\n", "\\n")
@@ -44,8 +49,8 @@ def _load_json(path: Path) -> Dict[str, Any]:
             ) from e
 
 
-
 def _json_default(obj: Any) -> Any:
+    """Сериализация нестандартных типов: dataclass/Decimal/Path/set/obj.to_dict."""
     if is_dataclass(obj):
         return asdict(obj)
     if isinstance(obj, Decimal):
@@ -68,6 +73,11 @@ def _dump_json(path: Path, data: Dict[str, Any]) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2, default=_json_default)
 
 
+# --- App entry --------------------------------------------------------------
+from controllers.input_controller import InputController  # noqa: E402
+from controllers.calculation_adapter import run_calculation  # noqa: E402
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Запуск расчёта new_ssu")
     ap.add_argument("--input", type=Path, default=Path("inputdata/1.json"))
@@ -84,6 +94,7 @@ def main() -> int:
 
     logger.info("Формирование PreparedController…")
     prepared = ic.prepare_params(data)
+    logger.info("Параметры успешно прошли валидацию")
 
     logger.info("Вызов CalculationController…")
     calc = run_calculation(prepared, parsed.values_si, data)
@@ -93,7 +104,7 @@ def main() -> int:
             "ts": datetime.utcnow().isoformat() + "Z",
             "input": str(args.input),
             "type": data.get("type"),
-            "methodic": data.get("physPackage", {}).get("physProperties", {}).get("methodic"),
+            "methodic": (data.get("physPackage") or {}).get("physProperties", {}).get("methodic"),
             "controller": "CalculationController",
         },
         "remarks": parsed.remarks,
