@@ -2,10 +2,13 @@
 """
 Адаптер вызова CalculationController:
 - Создаёт контроллер с разными конструкторами (__init__).
-- Совместимость: если нужен data["flowdata"], собираем legacy-вид (все численные значения → узлы {real, unit} там,
-  где контроллер ожидает узлы; а также подготавливаем числовые поля, которые контроллер использует как числа).
+- Совместимость: если нужен data["flowdata"], собираем legacy-вид.
+  ВАЖНО: environment_parameters → ЧИСЛА в SI (p, dp — Па; T — °C),
+  чтобы внутренняя математика контроллера не падала на узлах {real, unit}.
+  d20/D20/straightness_params.D оставляем узлами {real, unit} (мм).
+  physical_properties: Ro, mu → ЧИСЛА (mu в μPa·s), R/Z — как в исходнике.
 - Если methodic == "other" — физику не трогаем, запускаем _create_orifice() → _calculate_flow().
-- Возвращаем расширенную диагностику adapter_debug.
+- В result.adapter_debug возвращаем подробности конструирования и вход для _create_orifice().
 """
 from __future__ import annotations
 
@@ -27,12 +30,10 @@ def _is_keyerror(exc: BaseException, key: str) -> bool:
 
 
 def _node(val: float | int, unit: str) -> Dict[str, Any]:
-    """Универсальный узел {real, unit}."""
     return {"real": float(val), "unit": unit}
 
 
 def _extract_real(node: Any) -> Optional[float]:
-    """Возвращает число из узла {real, unit} или value.real; иначе None."""
     if isinstance(node, (int, float)):
         return float(node)
     if isinstance(node, dict):
@@ -44,43 +45,35 @@ def _extract_real(node: Any) -> Optional[float]:
 
 
 def _pick_or(node: Any, default: Dict[str, Any]) -> Dict[str, Any]:
-    """Если в исходнике уже узел с unit — возвращаем его, иначе даём default."""
     if isinstance(node, dict) and ("real" in node or ("value" in node and isinstance(node["value"], dict))):
         return node
     return default
 
 
 def _to_micro_pa_s(mu: Any) -> Optional[float]:
-    """Переводит узел/число вязкости в микропаскаль-секунды (μPa·s) числом.
-    Если mu — число, считаем, что он уже в μPa·s (чтобы не ломать существующие расчёты).
-    Поддерживаемые unit: Pa_s, Pa·s, mPa_s, uPa_s, µPa_s, micro_Pa_s, microPa_s.
-    """
+    """Переводит узел/число вязкости в микропаскаль-секунды (μPa·s) числом."""
     if mu is None:
         return None
     if isinstance(mu, (int, float)):
-        return float(mu)  # считаем уже μPa·s
+        return float(mu)
     if isinstance(mu, dict):
-        # может быть узел {real, unit} или {value:{real,unit}}
         if "value" in mu and isinstance(mu["value"], dict):
             mu = mu["value"]
         val = _extract_real(mu)
         unit = str(mu.get("unit", "")).replace(" ", "").replace("·", "_").replace("/", "_").lower()
         if val is None:
             return None
-        # нормализация единиц
         if unit in {"pa_s", "pa*s", "pa_s_"}:
             return val * 1_000_000.0
         if unit in {"mpa_s", "mpa*s"}:
             return val * 1_000.0
         if unit in {"upa_s", "µpa_s", "micro_pa_s", "micropa_s"}:
             return val
-        # неизвестная единица — вернём как есть, предполагая μPa·s
         return val
     return None
 
 
 def _build_straightness_params(raw: Dict[str, Any], prepared: Any) -> Dict[str, Any]:
-    """flowdata.straightness_params из lenPackage.* с безопасными дефолтами и узлами {real, unit}."""
     len_pkg = (raw.get("lenPackage") or {})
     lp = (len_pkg.get("lenProperties") or {})
     req = (len_pkg.get("request") or {})
@@ -95,7 +88,6 @@ def _build_straightness_params(raw: Dict[str, Any], prepared: Any) -> Dict[str, 
         "lensCompliance": lp.get("lensCompliance"),
         "calc": bool(req.get("calc", False)),
         "check": bool(req.get("check", False)),
-        # почему: многие правила ожидают эти флаги
         "usingCorrectionFactor": True,
         "DLessThan1p": True,
     }
@@ -103,7 +95,9 @@ def _build_straightness_params(raw: Dict[str, Any], prepared: Any) -> Dict[str, 
 
 
 def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: Any) -> Dict[str, Any]:
-    """Формирует legacy-структуру для контроллера. Узлы там, где это ожидается; числа там, где код сразу считает."""
+    """Формирует legacy-структуру для контроллера.
+    environment_parameters → ЧИСЛА (SI), остальное как описано выше.
+    """
     len_props = (((raw.get("lenPackage") or {}).get("lenProperties")) or {})
     phys_props = (((raw.get("physPackage") or {}).get("physProperties")) or {})
     flow_props = (((raw.get("flowPackage") or {}).get("flowProperties")) or {})
@@ -113,25 +107,22 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
     D20_src = len_props.get("D") or len_props.get("D20")
     D20_node = _pick_or(D20_src, _node(float(prepared.D) * 1000.0, "mm"))
 
-    # p/dp/T — узлы; если нет в исходнике, подставляем из prepared с требуемыми единицами
-    p_node  = _pick_or(phys_props.get("p_abs"), _node(float(prepared.p1) / 1e6, "MPa"))
-    dp_node = _pick_or(phys_props.get("dp"),    _node(float(prepared.dp) / 1e3, "kPa"))
-    T_node  = _pick_or(phys_props.get("T"),     _node(float(prepared.t1), "C"))
+    # environment_parameters → числа SI из prepared
+    p_pa: float = float(prepared.p1)
+    dp_pa: float = float(prepared.dp)
+    t_c: float = float(prepared.t1)
 
-    # -------- физические свойства для расчёта диафрагмы (используются как ЧИСЛА) --------
-    # Ro: берём как число (если в узле — real). Если нет — None.
+    # физсвойства как числа
     ro_num = None
     if "Ro" in phys_props:
         ro_num = _extract_real(phys_props["Ro"]) or _extract_real(phys_props.get("rho"))
     elif "rho" in phys_props:
-        ro_num = _extract_real(phys_props["rho"])  # допускаем альтернативное имя
+        ro_num = _extract_real(phys_props["rho"])  # альтернативное имя
 
-    # mu: число в μPa·s (контроллер делит на 1e6 внутри)
     mu_num = None
     if "mu" in phys_props:
-        mu_num = _to_micro_pa_s(phys_props["mu"])  # поддержка unit
+        mu_num = _to_micro_pa_s(phys_props["mu"])  # μPa·s
 
-    # соберём физпараметры как словарь; там, где контроллер делает арифметику — числа
     physical_props: Dict[str, Any] = {
         "R": phys_props.get("R"),
         "Z": phys_props.get("Z"),
@@ -143,7 +134,8 @@ def _build_legacy_data(raw: Dict[str, Any], parsed: Dict[str, Any], prepared: An
 
     flowdata = {
         "constrictor_params": {"d20": d20_node, "D20": D20_node},
-        "environment_parameters": {"p": p_node, "dp": dp_node, "T": T_node},
+        # КЛЮЧЕВОЕ: только числа в SI — это исправляет TypeError в _create_orifice
+        "environment_parameters": {"p": p_pa, "dp": dp_pa, "T": t_c},
         "physical_properties": physical_props,
         "flow_properties": {"q_v": flow_props.get("q_v"), "q_st": flow_props.get("q_st")},
         "straightness_params": _build_straightness_params(raw, prepared),
@@ -184,14 +176,12 @@ def _try_construct(args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> Any:
 
 
 def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any], debug: Dict[str, Any]) -> Optional[Any]:
-    """Создаёт экземпляр; на KeyError('flowdata'|'straightness_params') → подменяем raw→legacy."""
     if not _HAVE_CALC_CTRL or CalculationController is None:
         debug["construct_attempts"].append("CalculationController not importable")
         return None
 
     legacy = _build_legacy_data(raw, parsed, prepared)
 
-    # 1) __init__()
     try:
         debug["construct_attempts"].append("try: __init__()")
         return _try_construct((), {})
@@ -206,7 +196,6 @@ def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str
             except Exception as e2:
                 debug["construct_attempts"].append(f"__init__(data=legacy,prepared_params=prepared) Exception: {e2}")
 
-    # 2) kwargs
     kw = _build_init_kwargs(prepared, parsed, raw)
     if kw:
         try:
@@ -226,10 +215,9 @@ def _instantiate_controller(prepared: Any, parsed: Dict[str, Any], raw: Dict[str
                 except Exception as e2:
                     debug["construct_attempts"].append(f"__init__(**kw_legacy) Exception: {e2}")
 
-    # 3) позиционные
     combos = [
-        (("raw", "prepared"), {}),  # (data, prepared_params)
-        (("prepared", "raw"), {}),  # (prepared_params, data)
+        (("raw", "prepared"), {}),
+        (("prepared", "raw"), {}),
         (("raw",), {}),
     ]
     valmap = {"raw": raw, "prepared": prepared}
@@ -297,7 +285,6 @@ def run_calculation(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) 
             "used_values_si": {k: float(v) for k, v in parsed.items()},
         }
 
-    # Если физику можно запускать — пробуем полный сценарий
     if not skip_physics:
         if hasattr(ctrl, "run_calculations"):
             try:
@@ -319,7 +306,6 @@ def run_calculation(prepared: Any, parsed: Dict[str, Any], raw: Dict[str, Any]) 
                         except TypeError:
                             continue
 
-    # Ручной сценарий: _create_orifice → _calculate_flow
     status = {"status": "ok", "steps": []}
 
     inputs: Dict[str, Any] = {}
