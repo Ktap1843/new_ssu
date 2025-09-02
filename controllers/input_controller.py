@@ -436,9 +436,9 @@ class InputController:
         R = 8.314
         Z = 1.0
         if "R" in v:
-            R = float(v["R"])  # если когда-то появится
+            R = float(v["R"])
         if "Z" in v:
-            Z = float(v["Z"])  # если когда-то появится
+            Z = float(v["Z"])
 
         # Импортируем локально, чтобы не тянуть лишнее при простом парсе
         from controllers.prepare_controller import PreparedController  # noqa: WPS433
