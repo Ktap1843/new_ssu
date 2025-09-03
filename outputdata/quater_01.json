@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:31:07.546664Z",
+    "ts": "2025-09-03T13:52:03.071476Z",
     "input": "inputdata\\quater_01.json",
     "type": "quarter",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.016 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.055 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000019BB30A8110>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797E37C10>",
   "result": {
     "mass_flow": 0.016494472670096738,
     "Re": 21821.472250730196,

@@ -1,5 +1,5 @@
 {
-  "type": "wedge",
+  "type": "cylindrical",
   "ctrlRequest": { "steps": ["create_orifice", "calculate_flow"] },
   "physPackage": {
     "physProperties": {

@@ -1,26 +1,26 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:30:59.972316Z",
-    "input": "inputdata\\quarter_nozzle_02.json",
-    "type": "quarter_nozzle",
+    "ts": "2025-09-03T13:51:25.982096Z",
+    "input": "inputdata\\conical_01.json",
+    "type": "conical",
     "methodic": "otHER",
     "controller": "CalculationController"
   },
   "remarks": [
-    "[OK] p_abs <- physPackage/physProperties/p_abs → 5e+06 Pa",
+    "[OK] p_abs <- physPackage/physProperties/p_abs → 3.2e+06 Pa",
     "[INFO] Поле 'p_atm' не найдено (пути: physPackage/physProperties/p_atm, physPackage/p_atm).",
     "[INFO] Поле 'p_st' не найдено (пути: physPackage/physProperties/p_st, physPackage/p_st).",
-    "[OK] dp <- physPackage/physProperties/dp → 1000 Pa",
-    "[OK] T <- physPackage/physProperties/T → 12 C",
+    "[OK] dp <- physPackage/physProperties/dp → 15000 Pa",
+    "[OK] T <- physPackage/physProperties/T → 18 C",
     "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.040 m",
-    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.080 m"
+    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.030 m",
+    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001FBBFF1AF90>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000020BA1677490>",
   "result": {
-    "mass_flow": 0.039096742597106646,
-    "Re": 35559.76564143738,
-    "volume_flow_actual": 0.055852489424438066,
-    "volume_flow_std": 0.06014883476477945
+    "mass_flow": 0.0781116134253974,
+    "Re": 52345.72952518702,
+    "volume_flow_actual": 0.1084883519797186,
+    "volume_flow_std": 0.12204939597718342
   }
 }

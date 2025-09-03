@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:31:07.582773Z",
+    "ts": "2025-09-03T13:52:03.118477Z",
     "input": "inputdata\\wedge_01.json",
     "type": "wedge",
     "methodic": "otHER",
@@ -14,9 +14,9 @@
     "[OK] T <- physPackage/physProperties/T → 12 C",
     "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.025 m",
-    "[OK] D20 <- lenPackage/lenProperties/D → 0.065 m"
+    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.065 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000019BBB367910>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797E546D0>",
   "result": {
     "mass_flow": 0.09371673484671791,
     "Re": 104908.84229794214,

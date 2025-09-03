@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:31:07.530664Z",
+    "ts": "2025-09-03T13:52:03.050480Z",
     "input": "inputdata\\eccentric.json",
     "type": "eccentric",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.220 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.520 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000019BB4F92450>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797C42E50>",
   "result": {
     "mass_flow": 1.7155334639567026,
     "Re": 221086.13056685042,

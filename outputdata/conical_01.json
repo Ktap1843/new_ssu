@@ -1,8 +1,8 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:52:03.044476Z",
-    "input": "inputdata\\double_01.json",
-    "type": "double",
+    "ts": "2025-09-03T13:52:03.031482Z",
+    "input": "inputdata\\conical_01.json",
+    "type": "conical",
     "methodic": "otHER",
     "controller": "CalculationController"
   },
@@ -10,17 +10,17 @@
     "[OK] p_abs <- physPackage/physProperties/p_abs → 3.2e+06 Pa",
     "[INFO] Поле 'p_atm' не найдено (пути: physPackage/physProperties/p_atm, physPackage/p_atm).",
     "[INFO] Поле 'p_st' не найдено (пути: physPackage/physProperties/p_st, physPackage/p_st).",
-    "[OK] dp <- physPackage/physProperties/dp → 8000 Pa",
+    "[OK] dp <- physPackage/physProperties/dp → 15000 Pa",
     "[OK] T <- physPackage/physProperties/T → 18 C",
     "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.070 m",
+    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.030 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797D96BD0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797DBB0D0>",
   "result": {
-    "mass_flow": 0.29177723395349353,
-    "Re": 195531.64376413703,
-    "volume_flow_actual": 0.4559019280523337,
-    "volume_flow_std": 0.45590192805233365
+    "mass_flow": 0.0781116134253974,
+    "Re": 52345.72952518702,
+    "volume_flow_actual": 0.1084883519797186,
+    "volume_flow_std": 0.12204939597718342
   }
 }

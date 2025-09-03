@@ -16,10 +16,6 @@ class ConicalInletOrifice(BaseOrifice):
     _D_OVER_E1 = np.array([...])
 
     def __init__(self, D: float, d: float, Re: float, p: float, k: float, **kwargs):
-        #D20_mm = constr.get("D20"); d20_mm = constr.get("d20")
-        #if D20_mm is None or d20_mm is None:
-        #    raise ValueError("d20 и D20 обязательны в constrictor_params")
-        #self.D = D20_mm / 1000.0; self.d = d20_mm / 1000.0
         self.D = D
         self.d = d
         self.k = k
@@ -39,21 +35,24 @@ class ConicalInletOrifice(BaseOrifice):
         #self.e_tol = min(0.0025 * self.d, 0.00004)
         #self.S1 = constr.get("S1")
         #self.Ed = constr.get("Ed")
-        self.set_beta(beta)
+
+
+    def _beta_from_geometry(self):
+        return round(self.d / self.D, 12)
 
     def _validate(self) -> bool:
         beta = self.calculate_beta()
-        if not (0.0125 <= self.D <= 0.5 and 0.006 <= self.d <= 0.05):
-            logger.warning(f"[Validation error]{self.__class__.__name__}: D={self.D:.4f}m или d={self.d:.4f}m вне диапазона")
+        if not (0.025 <= self.D <= 0.5 and 0.006 <= self.d <= 0.05):
+            logger.error(f"[Validation error]{self.__class__.__name__}: D={self.D:.4f}m или d={self.d:.4f}m вне диапазона")
             return False
 
         if self.D <= 0.1:
             if not (0.1 <= beta <= 0.5):
-                logger.warning(f"[Validation error]{self.__class__.__name__}: β={beta:.3f} вне [0.1; 0.5]")
+                logger.error(f"[Validation error]{self.__class__.__name__}: β={beta:.3f} вне [0.1; 0.5]")
                 return False
         else:
             if not (0.1 <= beta <= 0.316):
-                logger.warning(f"[Validation error]{self.__class__.__name__}: β={beta:.3f} вне [0.1; 0.316]")
+                logger.error(f"[Validation error]{self.__class__.__name__}: β={beta:.3f} вне [0.1; 0.316]")
                 return False
         return True
 
@@ -111,6 +110,14 @@ class ConicalInletOrifice(BaseOrifice):
         beta, E = self.calculate_beta(), self.calculate_E()
         return (0.73095 + 0.2726 * beta ** 2 - 0.7138 * beta ** 4 + 5.0623 * beta ** 6) / E if self.D <= 0.1 else 0.734
 
+    # def discharge_coefficient_uncertainty(self) -> float:
+    #     """
+    #     Относительная погрешность коэффициента истечения
+    #     """ todo запрогать 6.4.1
+    #     beta = self.calculate_beta()
+    #     if beta <= 0.63: return 0.2
+    #     elif beta > 0.6: return 0.8 * beta**2 - 0.1
+
     def calculate_epsilon(self, delta_p: float, p: float) -> float:
         x = delta_p / p
         if x > 0.25:
@@ -123,6 +130,12 @@ class ConicalInletOrifice(BaseOrifice):
             frac = num / x * (1 - beta ** 4) / (1 - beta ** 4 * term)
             return 0.25 + 0.75 * math.sqrt(frac)
         return 1 - 0.351 * (1 - (1 - x) ** (1 / self.k))
+
+    # def delta_epsilon(self, delta_p: float, p: float, k: float) -> float:
+    #     """todo запрогать 6.4.2
+    #     Относительная погрешность
+    #     """
+    #     return 33 * (delta_p / (k * p))
 
     def pressure_loss(self, delta_p: float) -> float:
         beta = self.calculate_beta()

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:31:07.556663Z",
+    "ts": "2025-09-03T13:52:03.083474Z",
     "input": "inputdata\\sharp_01.json",
     "type": "sharp",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.020 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.050 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000019BBB366610>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797E37FD0>",
   "result": {
     "mass_flow": 0.03800259317350771,
     "Re": 48388.9375918755,
