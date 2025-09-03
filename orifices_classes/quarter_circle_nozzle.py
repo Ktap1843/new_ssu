@@ -1,22 +1,26 @@
 from .base_orifice import BaseOrifice
 import math
 
+from logger_config import get_logger
+
+logger = get_logger("QuarterCircleNozzle")
+
 class QuarterCircleNozzle(BaseOrifice):
     """
     Сопло «четверть круга»
     """
     def __init__(self, D: float, d: float, Re: float, p: float, **kwargs):
         super().__init__(D, d, Re)
-        self.p1 = p
-        self.set_beta(d / D)
-        # убраны все неиспользуемые геометрические параметры (e, Ed, r_profile и т. д.)
-        # оставляем только необходимые для расчетов: D, d, Re, p1
+        self.p = p
+        
+    def _beta_from_geometry(self):
+        return round(self.d / self.D, 12)
 
     def _validate(self) -> bool:
         beta = self.calculate_beta()
         # 12.3.1.1
         if not (0.025 <= self.D <= 0.1 and 0.0055 <= self.d <= 0.07 and 0.22 <= beta <= 0.7):
-            print(f"[Validation error] {self.__class__.__name__}: "
+            logger.error(f"[Validation error] {self.__class__.__name__}: "
                   f"D={self.D:.3f}, d={self.d:.3f}, β={beta:.3f}")
             return False
         return True
@@ -58,16 +62,20 @@ class QuarterCircleNozzle(BaseOrifice):
         return checks
 
     def check_Re(self) -> bool:
-        #todo отредактировать промежутки
+        #todo вопрос по строгому и не строгому равенсту Re
         beta = self.calculate_beta()
+        if beta <= 0.316:
+            Re_min = 2000
+        else:
+            Re_min = 7377 - 37016 * beta + 75648 * beta**2 - 39646 * beta**3
         Re_max = (-715045 +
                   10677719 * beta
                   - 59108018 * beta**2
                   + 157861035 * beta**3
                   - 200731143 * beta**4
                   + 97892444 * beta**5)
-        if self.Re > Re_max:
-            print(f"[Re check] {self.__class__.__name__}: Re={self.Re} > {Re_max}")
+        if not Re_min < self.Re < Re_max:
+            logger.error(f"[Re check] {self.__class__.__name__}: {Re_max} < Re={self.Re} < {Re_max}")
             return False
         return True
 
@@ -77,19 +85,17 @@ class QuarterCircleNozzle(BaseOrifice):
         E = self.calculate_E()
         return (0.7772 - 0.2137 * beta**2 + 2.0437 * beta**4 - 1.2664 * beta**6) * (1/E)
 
-    # todo потом можно вкл
     # def delta_C(self) -> float:
     #     """Относительная погрешность п.12.4.1"""
-    #     return 0.02
+    #     return 1
 
     def calculate_epsilon(self, delta_p: float, k: float) -> float:
         """Коэффициент расширения п.12.4.2"""
-        if delta_p / self.p1 > 0.25:
+        if delta_p / self.p > 0.25:
             raise ValueError("Δp/p > 0.25")
         beta = self.calculate_beta()
-        return 1 - (0.484 + 1.54 * beta**4) * delta_p / (self.p1 * k)
+        return 1 - (0.484 + 1.54 * beta**4) * delta_p / (self.p * k)
 
-    # todo потом можно вкл
     # def delta_epsilon(self, delta_p: float) -> float:
     #     """Относительная погрешность п.12.4.2"""
     #     return 1.25 * (delta_p / self.p)

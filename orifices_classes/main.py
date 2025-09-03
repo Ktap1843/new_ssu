@@ -34,7 +34,7 @@ _mapping = {
     OrificeType.DOUBLE:             DoubleOrifice,
     OrificeType.SEGMENT:            SegmentOrifice,
     OrificeType.ECCENTRIC:          EccentricOrifice,
-    OrificeType.QUARTER:            QuarterCircleOrifice,   #todo убираю при переносе
+    OrificeType.QUARTER:            QuarterCircleOrifice,
     OrificeType.QUARTER_NOZZLE:     QuarterCircleNozzle,    #todo убираю при переносе
     OrificeType.CYLINDRICAL_NOZZLE: CylindricalNozzle,  #todo убираю при переносе
     OrificeType.WEDGE:              WedgeFlowMeter,

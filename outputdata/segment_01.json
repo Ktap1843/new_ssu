@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T12:16:43.071235Z",
+    "ts": "2025-09-03T13:31:07.551661Z",
     "input": "inputdata\\segment_01.json",
     "type": "segment",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.120 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000002557FF86350>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000019BBB366D50>",
   "result": {
     "mass_flow": 0.42263660572108364,
     "Re": 236021.47064905116,

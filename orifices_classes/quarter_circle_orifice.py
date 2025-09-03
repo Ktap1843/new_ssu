@@ -1,21 +1,26 @@
 from .base_orifice import BaseOrifice
 import math
 
+from logger_config import get_logger
+
+logger = get_logger("QuarterCircleOrifice")
+
 class QuarterCircleOrifice(BaseOrifice):
     """
     Диафрагма "четверть круга"
     """
-    def __init__(self, D: float, d: float, Re: float, p1: float, **kwargs):
+    def __init__(self, D: float, d: float, Re: float, p: float, **kwargs):
         super().__init__(D, d, Re)
-        self.p1 = p1
-        beta = d / D
-        self.set_beta(beta)
+        self.p = p
+        
+    def _beta_from_geometry(self):
+        return round(self.d / self.D, 12)
 
     def _validate(self) -> bool:
         beta = self.calculate_beta()
         # 11.2 базовые проверки D, d, β (делаем через диапазоны)
-        if not (0.015 <= self.d <= 0.6 and 0.025 <= self.D <= 0.5 and 0.245 <= beta <= 0.6):
-            print(f"[Validation error]{self.__class__.__name__}: D={self.D:.3f}, d={self.d:.3f}, β={beta:.3f}")
+        if not (0.015 <= self.d and self.D <= 0.5 and 0.245 <= beta <= 0.6):
+            logger.error(f"[Validation error]{self.__class__.__name__}: D={self.D:.3f}, d={self.d:.3f}, β={beta:.3f}")
             return False
         return True
 
@@ -42,12 +47,14 @@ class QuarterCircleOrifice(BaseOrifice):
         # 11.3.4 Отбор давления
         checks['Отбор давления'] = 'угловой способ (п.4.1.11); фланцевый (D>40 мм, ГОСТ 8.586.2 п.5.2.2)'
         return checks
+    
+    
     def check_Re(self) -> bool:
         beta = self.calculate_beta()
         Re_min = 1000 * beta + 9.4e6 * (beta - 0.24)**8
         Re_max = 1e5 * beta
         if not (Re_min <= self.Re <= Re_max):
-            print(f"[Re check] {self.__class__.__name__}: Re={self.Re:.0f} вне [{Re_min:.0f}; {Re_max:.0f}]")
+            logger.error(f"[Re check] {self.__class__.__name__}: Re={self.Re:.0f} вне [{Re_min:.0f}; {Re_max:.0f}]")
             return False
         return True
 
@@ -56,24 +63,22 @@ class QuarterCircleOrifice(BaseOrifice):
         beta = self.calculate_beta()
         return (0.73823 + 0.3309 * beta - 1.1615 * beta**2 + 1.5084 * beta**3)
 
-    # todo потом можно вкл
     # def delta_C(self) -> float:
     #     """Относительная погрешность п.11.4.1"""
     #     beta = self.calculate_beta()
-    #     return 0.025 if beta <= 0.316 else 0.02
+    #     return 2.5 if beta <= 0.316 else 2
 
     def calculate_epsilon(self, delta_p: float, k: float) -> float:
         """Коэффициент расширения п.11.4.2"""
-        if delta_p / self.p1 > 0.25:
-            raise ValueError("Δp/p1 > 0.25")
+        if delta_p / self.p > 0.25:
+            raise ValueError("Δp/p > 0.25")
         beta = self.calculate_beta()
         term = (0.351 + 0.256 * beta**4 + 0.93 * beta**8)
-        return 1 - term * (1 - (1 - delta_p / self.p1)**(1/k))
+        return 1 - term * (1 - (1 - delta_p / self.p)**(1/k))
 
-    # todo потом можно вкл
     # def delta_epsilon(self, delta_p: float, k: float) -> float:
     #     """Относительная погрешность п.11.4.2"""
-    #     return 3.5 * (delta_p / (k * self.p1))
+    #     return 3.5 * (delta_p / (k * self.p))
 
     def pressure_loss(self, delta_p: float) -> float:
         """п.11.5"""

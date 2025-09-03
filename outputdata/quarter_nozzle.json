@@ -1,8 +1,8 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:31:07.577664Z",
-    "input": "inputdata\\wear_03.json",
-    "type": "wear",
+    "ts": "2025-09-03T13:26:40.747440Z",
+    "input": "inputdata\\quarter_nozzle.json",
+    "type": "quarter_nozzle",
     "methodic": "otHER",
     "controller": "CalculationController"
   },
@@ -13,14 +13,14 @@
     "[OK] dp <- physPackage/physProperties/dp → 8000 Pa",
     "[OK] T <- physPackage/physProperties/T → 12 C",
     "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
-    "[OK] D20 <- lenPackage/lenProperties/D → 0.100 m"
+    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.016 m",
+    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.055 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000019BBB367510>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C49F0B0650>",
   "result": {
-    "mass_flow": 0.13109759929785295,
-    "Re": 95390.04218794868,
-    "volume_flow_actual": 0.19279058720272488,
-    "volume_flow_std": 0.20168861430438914
+    "mass_flow": 0.016420998058100794,
+    "Re": 21724.268524435305,
+    "volume_flow_actual": 0.023458568654429707,
+    "volume_flow_std": 0.02526307393553968
   }
 }

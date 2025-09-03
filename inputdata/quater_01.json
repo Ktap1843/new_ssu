@@ -1,5 +1,5 @@
 {
-  "type": "wedge",
+  "type": "quarter",
   "ctrlRequest": { "steps": ["create_orifice", "calculate_flow"] },
   "physPackage": {
     "physProperties": {
@@ -8,7 +8,7 @@
       "T":     { "real": 12, "unit": "C" },
       "p_abs": { "real": 2.0, "unit": "MPa" },
       "dp":    { "real": 8, "unit": "kPa" },
-      "Ro": { "real": 0.68 },
+      "Ro": { "real": 0.7 },
       "Roc": { "real": 0.65 },
       "k":  { "real": 1.35 },
       "mu": { "real": 17.5, "unit": "uPa_s" }
@@ -16,8 +16,8 @@
   },
   "lenPackage": {
     "lenProperties": {
-      "d20": { "real": 25, "unit": "mm" },
-      "D":   { "real": 65, "unit": "mm" },
+      "d20": { "real": 16, "unit": "mm" },
+      "D20":   { "real": 55, "unit": "mm" },
       "d20_steel": "35l",
       "D20_steel": "35l",
       "alpha": 45,
