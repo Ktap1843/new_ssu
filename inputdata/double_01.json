@@ -7,8 +7,8 @@
       "aggregate_state": "gas",
       "T":     { "real": 18, "unit": "C" },
       "p_abs": { "real": 3.2, "unit": "MPa" },
-      "dp":    { "real": 15, "unit": "kPa" },
-      "Ro": { "real": 0.72 },
+      "dp":    { "real": 8, "unit": "kPa" },
+      "Ro": { "real": 0.64 },
       "Roc": { "real": 0.64 },
       "k":  { "real": 1.37 },
       "mu": { "real": 19.0, "unit": "uPa_s" }

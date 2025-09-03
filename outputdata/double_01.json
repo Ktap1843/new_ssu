@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T09:59:24.557405Z",
+    "ts": "2025-09-03T10:02:20.753727Z",
     "input": "inputdata\\double_01.json",
     "type": "double",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.070 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000023580072FD0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000017302281E50>",
   "result": {
     "mass_flow": 0.29177723395349353,
     "Re": 195531.64376413703,

@@ -135,18 +135,33 @@ def run_calculation(*args: Any, **kwargs: Any):
         if _alpha_val is not None:
             v["alpha"] = _alpha_val
 
+    # DoubleOrifice ожидает параметр 'p' в __init__. Маппим p1/p_abs → p (без изменений алгоритма).
+    if "p" not in v:
+        try:
+            _p_node = raw.get("physPackage", {}).get("physProperties", {}).get("p_abs")
+            _p_from_raw = _p_node.get("real") if isinstance(_p_node, dict) else _p_node
+        except Exception:
+            _p_from_raw = None
+        v["p"] = v.get("p1", v.get("p_abs", _p_from_raw))
+
     # ВАЖНО: некоторым классам (например, Cone) нужен Re в __init__.
     # Берём Re из values_si, иначе подставляем ПУСКОВОЕ значение (как в вашем контроллере): 1.0e5.
-    # Это не «выдумка», а ваш же подход для первичной инициализации до основного расчёта.
     if "Re" not in v or v["Re"] is None:
         v["Re"] = 1.0e5
 
-    # Re будет пересчитан позже в основном расчёте; при необходимости можно обновить ССУ.
     kwargs = dict(v)
+    kwargs.setdefault("do_validate", False)
     kwargs.setdefault("do_validate", False)
 
     _log.info("create_orifice(name=%s, kwargs=%s)", ssu_name, sorted([k for k in kwargs.keys() if k not in ("rho","mu","kappa","is_gas")]))
     ssu = create_orifice(ssu_name, **kwargs)
+
+    # Гарантируем наличие давления в объекте ССУ для методов типа calculate_epsilon
+    try:
+        if "p" in v:
+            ssu.p = float(v["p"])  # важно для DoubleOrifice
+    except Exception:
+        pass
 
     # 3) Методы ССУ: термокоррекция → validate → validate_roughness → run_all
     # Термокоррекция геометрии средствами класса (если метод доступен)

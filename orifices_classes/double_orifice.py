@@ -10,12 +10,11 @@ class DoubleOrifice(BaseOrifice):
     """
     def __init__(self, D: float, d: float, Re: float, p: float, **kwargs):
         super().__init__(D, d=d, Re=Re)
-        #self.p = p
-        beta = (d / D)
-        #self.set_beta(beta)
+        self.p = p
+
 
     def _beta_from_geometry(self):
-        return self.d / self.D
+        return round(self.d / self.D, 12)
 
     def _validate(self) -> bool:
         beta = self.calculate_beta()
@@ -45,7 +44,7 @@ class DoubleOrifice(BaseOrifice):
         if not (Re_min <= self.Re <= Re_max):
             logger.warning(
                 f"[Re check] {self.__class__.__name__}: "
-                f"Re={self.Re:.0f} вне [{Re_min:.0f}; {Re_max:.0f}]"
+                f"Re={self.Re:.5f} вне [{Re_min:.5f}; {Re_max:.5f}]"
             )
             return False
         return True
