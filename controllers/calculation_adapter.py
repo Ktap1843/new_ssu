@@ -1,280 +1,413 @@
 # path: controllers/calculation_adapter.py
-"""Calculation Adapter: связывает создание ССУ (дросселирующего устройства)
-и вычисление расхода. Не создаёт новых файлов и не ломает существующие импорты.
-
-Использование:
-    from controllers.calculation_adapter import CalculationAdapter, Fluid, Process, SSUType
-
-    adapter = CalculationAdapter()
-    ssu = adapter.build_ssu(SSUType.ORIFICE, D=0.2, d=0.1, taps="corner")
-    flow = adapter.calc_flow(ssu, Fluid(rho=998.2, mu=1.0e-3), Process(D=0.2, d=0.1, dp=5_000, p1=2.0e5, t1=293.15))
-    print(flow)
-
-Примечания:
-- Если в пакете `calc_flow` уже есть «правильная» функция, адаптер найдёт её динамически
-  (по именам вида calculate_flow/compute_flow/calc_flow/calc/calculate). Иначе —
-  fallback (упрощённая ISO 5167) — чтобы пайплайн работал сразу.
-- Для поиска класса ССУ адаптер перебирает модули в пакете `orifices_classes` и пытается
-  найти класс по типу (orifice/nozzle/venturi). Если не находит — встроенный класс.
+"""
+Связка блоков — по шагам и без «магии»:
+1) Берём вход: run_calculation(prepared, values_si, raw)
+2) Готовим геометрию при рабочей температуре:
+   - используем D20/d20 и стали D20_steel/d20_steel + T (°C) из raw
+   - температурную коррекцию делаем методами пакета материалов
+   - дальше в конвейере используем только скорректированные D,d (D20/d20 дальше не тянем)
+3) Создаём экземпляр ССУ через orifices_classes.main.create_orifice(name=raw['type'], **kwargs)
+   - добавляем недостающие обязательные параметры (например, alpha из lenPackage.lenProperties.theta)
+   - Re не считаем: если требуется — должен прийти в values_si
+   - do_validate=False, затем валидируем после термокоррекции
+4) Вызываем методы ССУ: update_geometry_from_temp → validate → validate_roughness → run_all
+5) Когда ССУ готово, запускаем основной расчёт через calc_flow.calcflow (CalcFlow или функции)
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
 from importlib import import_module
-from importlib.util import find_spec
-import inspect
-import math
-import pkgutil
-from types import ModuleType
-from typing import Any, Callable, Dict, Optional, Protocol, TypedDict
+from typing import Any, Mapping
+
+# --- Logger (корневой, по проекту) ---
+try:
+    from logger_config import get_logger  # предпочтительно, как в проекте
+    _log = get_logger("CalculationAdapter")
+except Exception:
+    try:
+        from logger import get_logger  # альтернативное имя
+        _log = get_logger("CalculationAdapter")
+    except Exception:  # no-op
+        class _Dummy:
+            def info(self, *a, **k): pass
+            def debug(self, *a, **k): pass
+            def warning(self, *a, **k): pass
+            def error(self, *a, **k): pass
+        _log = _Dummy()
 
 
-# -------------------- Доменные типы --------------------
+# -------------------- Точка входа --------------------
 
-class SSUType(str, Enum):
-    ORIFICE = "orifice"
-    NOZZLE = "nozzle"
-    VENTURI = "venturi"
-
-
-@dataclass(slots=True)
-class Fluid:
-    rho: float  # кг/м^3
-    mu: float   # Па·с
-    kappa: float = 1.4
-    is_gas: bool = False
-
-
-@dataclass(slots=True)
-class Process:
-    D: float
-    d: float
-    dp: float
-    p1: float
-    t1: float
-    taps: Optional[str] = None
-
-
-class SSULike(Protocol):
-    D: float
-    d: float
-    type: SSUType
-
-    def discharge_coefficient(self, Re: float, beta: float, **ctx: Any) -> float: ...
-
-
-class FlowResult(TypedDict):
-    beta: float
-    Re: float
-    C: float
-    epsilon: float
-    qv: float  # м^3/с
-    qm: float  # кг/с
-
-
-# -------------------- Вспомогательные утилиты --------------------
-
-def _area(d: float) -> float:
-    return math.pi * d * d / 4.0
-
-
-def _reynolds(rho: float, v: float, D: float, mu: float) -> float:
-    return rho * v * D / max(mu, 1e-12)
-
-
-def _epsilon_orifice(beta: float, kappa: float, dp: float, p1: float) -> float:
-    if dp <= 0 or p1 <= 0:
-        return 1.0
-    m = (0.351 + 0.256 * beta**4 + 0.93 * beta**8)
-    x = dp / p1
-    return max(min(1.0 - (m / kappa) * x, 1.0), 0.6)
-
-
-# -------------------- Адаптер --------------------
-
-class CalculationAdapter:
-    """Координирует шаги: создание ССУ → расчёт расхода.
-
-    Почему так: минимально-инвазивная интеграция под разные имена функций/классов в проекте.
+def run_calculation(*args: Any, **kwargs: Any):
+    """run_calculation(prepared, values_si, raw)
+    Шаги: термокоррекция → создание ССУ → методы ССУ → запуск CalcFlow.
     """
+    if len(args) < 2:
+        raise ValueError("run_calculation(prepared, values_si[, raw]) — минимум 2 аргумента")
 
-    # ---- Создание ССУ ----
-    def build_ssu(self, ssu_type: SSUType, D: float, d: float, taps: Optional[str] = None) -> SSULike:
-        # 1) Сначала пытаемся найти класс в пакете `orifices_classes` по типу
-        candidate = self._find_ssu_class(ssu_type)
-        if candidate is not None:
-            try:
-                return candidate(D=D, d=d, taps=taps)  # type: ignore[call-arg]
-            except TypeError:
-                # Почему: возможны другие имена аргументов у пользовательских классов
-                return candidate(D, d)  # type: ignore[misc]
+    prepared = args[0]
+    values: Mapping[str, Any] = args[1] or {}
+    raw: Mapping[str, Any] = args[2] if len(args) >= 3 else {}
 
-        # 2) Фоллбек: встроенный класс с приемлемым C(Re, beta)
-        class _BuiltinSSU:
-            def __init__(self, D: float, d: float, ssu_type: SSUType, taps: Optional[str]):
-                self.D = D
-                self.d = d
-                self.type = ssu_type
-                self.taps = taps
+    # 0) Шаги (если есть)
+    try:
+        steps = list(raw.get("ctrlRequest", {}).get("steps", []))
+    except Exception:
+        steps = []
 
-            def discharge_coefficient(self, Re: float, beta: float, **ctx: Any) -> float:
-                # Почему: безопасные ориентиры близко к ISO 5167
-                if self.type is SSUType.ORIFICE:
-                    return 0.596 + 0.0261 * beta**2 - 0.216 * beta**8 + (0.000521 / (Re**0.7 + 1e-9))
-                if self.type is SSUType.NOZZLE:
-                    return 0.995 - 10_000.0 / (Re + 10_000.0)
-                if self.type is SSUType.VENTURI:
-                    return 0.985
-                return 0.62
+    # 1) Диаметры и температурная поправка (всегда переходим к «тёплым» D,d)
+    v = dict(values)
 
-        return _BuiltinSSU(D=D, d=d, ssu_type=ssu_type, taps=taps)  # type: ignore[return-value]
+    # Пытаемся взять исходные холодные размеры при 20°C
+    D20 = v.get("D20")
+    d20 = v.get("d20")
+    # На всякий случай поддержим D/d, если уже готовы
+    D = v.get("D")
+    d = v.get("d")
 
-    def _find_ssu_class(self, ssu_type: SSUType):
-        if find_spec("orifices_classes") is None:
-            return None
-        pkg = import_module("orifices_classes")
-        type_key = ssu_type.value.lower()
-        for modinfo in pkgutil.iter_modules(getattr(pkg, "__path__", [])):
-            mod: ModuleType = import_module(f"orifices_classes.{modinfo.name}")
-            for name, obj in vars(mod).items():
-                if not inspect.isclass(obj):
-                    continue
-                low = name.lower()
-                if any(k in low for k in ("orifice", "diaphr", "nozzle", "venturi")):
-                    if type_key in low or (type_key == "orifice" and ("orifice" in low or "diaphr" in low)):
-                        return obj
+    # Температура эксплуатации (°C) из raw
+    try:
+        T_val = raw.get("physPackage", {}).get("physProperties", {}).get("T", {}).get("real")
+    except Exception:
+        T_val = None
+    if T_val is None and "T" in v:
+        T_val = v["T"]
+
+    # Стали для коэффициентов линейного расширения
+    try:
+        lp = raw.get("lenPackage", {}).get("lenProperties", {})
+        d20_steel = lp.get("d20_steel")
+        D20_steel = lp.get("D20_steel")
+        Ra_raw = lp.get("Ra")
+        Ra_um = (Ra_raw.get("real") if isinstance(Ra_raw, dict) else Ra_raw)
+        theta = lp.get("theta")
+    except Exception:
+        d20_steel = D20_steel = Ra_um = theta = None
+
+    # Если есть холодные размеры и данные для термокоррекции — используем их
+    if D20 is not None and d20 is not None and T_val is not None and (d20_steel or D20_steel):
+        try:
+            from orifices_classes.materials import calc_alpha
+            T_c = float(T_val)
+            dT = T_c - 20.0
+            alpha_D = float(calc_alpha(D20_steel, T_c)) if D20_steel else 0.0
+            alpha_d = float(calc_alpha(d20_steel, T_c)) if d20_steel else 0.0
+            D = float(D20) * (1.0 + alpha_D * dT)
+            d = float(d20) * (1.0 + alpha_d * dT)
+            _log.info("Термокоррекция: D20=%.6g→D=%.6g, d20=%.6g→d=%.6g (ΔT=%.3g°C)", D20, D, d20, d, dT)
+        except Exception as e:
+            _log.warning("Не удалось применить термокоррекцию: %s — используем исходные значения", e)
+            D = float(D or D20)
+            d = float(d or d20)
+    else:
+        # Иначе используем то, что уже пришло (D,d) или просто D20,d20 как есть
+        if D is None and D20 is not None:
+            D = float(D20)
+        if d is None and d20 is not None:
+            d = float(d20)
+        if D is None or d is None:
+            raise KeyError("Нужны диаметры: D и d (или D20 и d20)")
+
+    # Фиксируем «тёплые» диаметры и больше D20/d20 не тянем
+    v["D"], v["d"] = float(D), float(d)
+    v.pop("D20", None); v.pop("d20", None)
+
+    # 2) Создаём экземпляр ССУ через orifices_classes.main
+    try:
+        from orifices_classes.main import create_orifice
+    except Exception as exc:
+        _log.error("Импорт orifices_classes.main.create_orifice не удался: %s", exc)
+        raise
+
+    # Тип ССУ строго из raw
+    try:
+        ssu_name = str(raw.get("type", "")).strip().lower()
+    except Exception:
+        ssu_name = ""
+    if not ssu_name:
+        raise KeyError("В raw['type'] не задан тип ССУ (например: 'cone', 'orifice')")
+
+    # Обязательные параметры: alpha для некоторых типов (например, cone) — берём из theta, если alpha нет
+    if "alpha" not in v and theta is not None:
+        v["alpha"] = theta
+
+    # ВАЖНО: некоторым классам (например, Cone) нужен Re в __init__.
+    # Берём Re из values_si, иначе подставляем ПУСКОВОЕ значение (как в вашем контроллере): 1.0e5.
+    # Это не «выдумка», а ваш же подход для первичной инициализации до основного расчёта.
+    if "Re" not in v or v["Re"] is None:
+        v["Re"] = 1.0e5
+
+    # Re будет пересчитан позже в основном расчёте; при необходимости можно обновить ССУ.
+    kwargs = dict(v)
+    kwargs.setdefault("do_validate", False)
+
+    _log.info("create_orifice(name=%s, kwargs=%s)", ssu_name, sorted([k for k in kwargs.keys() if k not in ("rho","mu","kappa","is_gas")]))
+    ssu = create_orifice(ssu_name, **kwargs)
+
+    # 3) Методы ССУ: термокоррекция → validate → validate_roughness → run_all
+    # Термокоррекция геометрии средствами класса (если метод доступен)
+    try:
+        if hasattr(ssu, "update_geometry_from_temp") and (D20 is not None and d20 is not None and T_val is not None):
+            from orifices_classes.materials import calc_alpha  # уже импортировали выше — дублим локально на случай ограничений
+            T_c = float(T_val)
+            alpha_T = float(calc_alpha(D20_steel, T_c)) if D20_steel else 0.0
+            alpha_CCU = float(calc_alpha(d20_steel, T_c)) if d20_steel else 0.0
+            ssu.update_geometry_from_temp(
+                d_20=float(d20) if d20 is not None else float(d),
+                D_20=float(D20) if D20 is not None else float(D),
+                alpha_CCU=alpha_CCU,
+                alpha_T=alpha_T,
+                t=T_c,
+            )
+            # После обновления — берём актуальные D,d внутрь values
+            if hasattr(ssu, "D") and hasattr(ssu, "d"):
+                v["D"] = float(getattr(ssu, "D"))
+                v["d"] = float(getattr(ssu, "d"))
+    except Exception as e:
+        _log.warning("update_geometry_from_temp не выполнен: %s", e)
+
+    # Валидация
+    if hasattr(ssu, "validate"):
+        if not ssu.validate():
+            raise ValueError(f"Валидация геометрии ССУ '{ssu_name}' не пройдена")
+
+    # Шероховатость, если задана (Ra в микрометрах)
+    try:
+        if Ra_um is not None and hasattr(ssu, "validate_roughness"):
+            valid_rough = ssu.validate_roughness(float(Ra_um) / 1000.0)
+            v["valid_roughness"] = bool(valid_rough)
+    except Exception as e:
+        _log.warning("validate_roughness не выполнен: %s", e)
+
+    # Полный расчёт параметров ССУ, если есть метод run_all
+    ssu_results = None
+    try:
+        if hasattr(ssu, "run_all"):
+            # Выберем базовые аргументы из values/raw
+            delta_p = v.get("dp")
+            p_in = v.get("p1", v.get("p_abs"))
+            k_val = v.get("k") or raw.get("physPackage", {}).get("physProperties", {}).get("k", {}).get("real") if isinstance(raw.get("physPackage", {}), dict) else None
+            ssu_results = ssu.run_all(
+                delta_p=delta_p, p=p_in, k=k_val,
+                Ra=(float(Ra_um)/1000.0) if Ra_um is not None else None,
+                alpha=v.get("alpha"),
+            )
+            v["ssu_results"] = ssu_results
+    except Exception as e:
+        _log.warning("run_all не выполнен: %s", e)
+
+    # 4) Запускаем CalcFlow (как и раньше)
+    _log.info("Маршрут: calc_flow.calcflow → CalcFlow | функции")
+
+    import inspect
+
+    # 2) Идём напрямую в calc_flow.calcflow
+    _log.info("Маршрут: calc_flow.calcflow → CalcFlow | функции")
+
+    # Попытка: класс CalcFlow
+    try:
+        cf_mod = import_module("calc_flow.calcflow")
+        CF = getattr(cf_mod, "CalcFlow", None)
+    except Exception as exc:
+        CF = None
+        _log.warning("Импорт calc_flow.calcflow не удался: %s", exc)
+
+    # Метод/функция из steps (если задан) или дефолтные имена
+    def _pick_step():
+        for s in steps:
+            if isinstance(s, str) and ("calc" in s.lower() or "run" in s.lower()):
+                return s
         return None
 
-    # ---- Поиск функции расчёта в проекте ----
-    def _find_calc_func(self) -> Optional[Callable[[SSULike, Fluid, Process], FlowResult]]:
-        if find_spec("calc_flow") is None:
-            return None
-        pkg = import_module("calc_flow")
-        candidates = [
-            "calculate_flow", "compute_flow", "calc_flow", "calc", "calculate",
-            "get_flow", "flow_rate",
+    picked = _pick_step()
+    method_candidates = [m for m in (picked, "run_calculations", "run", "calculate", "calc", "calculate_flow", "compute", "main") if m]
+
+    def _instantiate_CF(CF):
+        # 0) Попробуем по сигнатуре собрать kwargs с маппингом имён
+        try:
+            sig = inspect.signature(CF)
+            params = sig.parameters
+            kwargs = {}
+
+            # helpers to pull from values/raw
+            def _from_raw_phys(key: str):
+                try:
+                    node = raw.get("physPackage", {}).get("physProperties", {}).get(key)
+                    if isinstance(node, dict) and "real" in node:
+                        return node["real"]
+                    return node
+                except Exception:
+                    return None
+
+            for name, p in params.items():
+                lname = name.lower()
+                # direct matches by expected names in signature
+                if name == "p1":
+                    kwargs[name] = v.get("p1", v.get("p_abs", _from_raw_phys("p_abs")))
+                elif name == "t1":
+                    t = v.get("t1", v.get("T", _from_raw_phys("T")))
+                    if t is not None:
+                        t = float(t)
+                        if t < 200:  # °C → K
+                            t = t + 273.15
+                    kwargs[name] = t
+                elif lname in ("delta_p", "dp"):
+                    kwargs[name] = v.get("dp", _from_raw_phys("dp"))
+                elif lname == "mu":
+                    kwargs[name] = v.get("mu", _from_raw_phys("mu"))
+                elif name == "Roc":
+                    kwargs[name] = v.get("Roc", _from_raw_phys("Roc"))
+                elif name == "Ro":
+                    kwargs[name] = v.get("Ro", _from_raw_phys("Ro"))
+                elif lname == "k":
+                    # из values или raw.k.real
+                    kval = v.get("k")
+                    if kval is None:
+                        kval = _from_raw_phys("k")
+                        if isinstance(kval, dict) and "real" in kval:
+                            kval = kval["real"]
+                    kwargs[name] = kval
+                elif lname in ("orifice", "ssu", "meter", "device"):
+                    try:
+                        kwargs[name] = ssu
+                    except NameError:
+                        pass
+                elif name in v:
+                    kwargs[name] = v[name]
+                elif lname == "p":
+                    kwargs[name] = v.get("p1", v.get("p_abs", _from_raw_phys("p_abs")))
+                elif lname in ("t", "temp", "temperature"):
+                    t = v.get("t1", v.get("T", _from_raw_phys("T")))
+                    if t is not None:
+                        t = float(t)
+                        if t < 200:
+                            t = t + 273.15
+                    kwargs[name] = t
+                elif p.default is not inspect._empty:
+                    # optional → skip
+                    pass
+            _log.debug("Пробую CalcFlow(**%s)", list(kwargs.keys()))
+            return CF(**kwargs)
+        except Exception as e:
+            _log.debug("CalcFlow(**kwargs) не создан: %s", e)
+        # 1) Позиционные варианты
+        ctor_variants = [
+            (prepared, v, raw),
+            (v, raw),
+            (v,),
+            tuple(),
         ]
-        # 1) Пробуем простые имена на уровне пакета
-        for name in candidates:
-            fn = getattr(pkg, name, None)
-            if callable(fn) and self._callable_compatible(fn):
-                return fn  # type: ignore[return-value]
-        # 2) Обходим подпакеты/модули
-        for modinfo in pkgutil.iter_modules(getattr(pkg, "__path__", [])):
-            sub = import_module(f"calc_flow.{modinfo.name}")
-            for name, obj in vars(sub).items():
-                if callable(obj) and name in candidates and self._callable_compatible(obj):
-                    return obj  # type: ignore[return-value]
+        for variant in ctor_variants:
+            try:
+                _log.debug("Пробую CalcFlow%r", tuple(type(x).__name__ for x in variant))
+                return CF(*variant)
+            except TypeError:
+                continue
         return None
 
-    @staticmethod
-    def _callable_compatible(fn: Callable[..., Any]) -> bool:
+    cf = None
+    if CF is not None:
+        cf = _instantiate_CF(CF)
+
+    if cf is not None:
+        # Есть экземпляр; пробуем методы
+        # Лог сигнатуры класса, чтобы понять, что он ждёт
         try:
-            sig = inspect.signature(fn)
-        except (TypeError, ValueError):
-            return False
-        params = list(sig.parameters.values())
-        if len(params) < 3:
-            return False
-        # Почему: допускаем разные имена, но позиционно ≥3 параметров
-        return True
+            _log.info("CalcFlow signature: %s", str(inspect.signature(cf.__class__)))
+        except Exception:
+            pass
+        for mname in method_candidates:
+            method = getattr(cf, mname, None)
+            if not callable(method):
+                continue
+            # Попытки вызова: без аргументов → (prepared,v,raw) → (v,raw) → (v,) → ()
+            try:
+                _log.info("Вызов CalcFlow.%s()", mname)
+                return method()
+            except TypeError:
+                pass
+            for call in ((prepared, v, raw), (v, raw), (v,), tuple()):
+                try:
+                    _log.info("Вызов CalcFlow.%s(%d args)", mname, len(call))
+                    return method(*call)
+                except TypeError:
+                    continue
+        _log.warning("Не нашли подходящий метод в CalcFlow — попробуем модульные функции")
 
-    # ---- Расчёт ----
-    def calc_flow(self, ssu: SSULike, fluid: Fluid, proc: Process) -> FlowResult:
-        project_fn = self._find_calc_func()
-        if project_fn is not None:
-            # Передаём как есть — пользовательская реализация приоритетна
-            return project_fn(ssu, fluid, proc)  # type: ignore[return-value]
-        # Фоллбек (упрощённый ISO 5167)
-        beta = proc.d / proc.D
-        beta4 = beta ** 4
-        A_pipe = _area(proc.D)
-        A_orif = _area(proc.d)
-        C0 = 0.62
-        qv_guess = C0 * A_orif * math.sqrt(max(2.0 * proc.dp / (fluid.rho * max(1.0 - beta4, 1e-12)), 0.0))
-        v_pipe_guess = qv_guess / max(A_pipe, 1e-12)
-        Re_guess = _reynolds(fluid.rho, v_pipe_guess, proc.D, fluid.mu)
-        C = getattr(ssu, "discharge_coefficient", lambda Re, beta, **kw: C0)(Re_guess, beta)
-        epsilon = 1.0
-        if fluid.is_gas:
-            epsilon = _epsilon_orifice(beta, fluid.kappa, proc.dp, proc.p1)
-        coef = C * epsilon * A_orif
-        denom = math.sqrt(max(1.0 - beta4, 1e-12))
-        qv = coef * math.sqrt(max(2.0 * proc.dp / (fluid.rho * denom**2), 0.0))
-        qm = qv * fluid.rho
-        v_pipe = qv / max(A_pipe, 1e-12)
-        Re = _reynolds(fluid.rho, v_pipe, proc.D, fluid.mu)
-        return FlowResult(beta=beta, Re=Re, C=C, epsilon=epsilon, qv=qv, qm=qm)
-
-    # ---- Высокоуровневый шаг: создание + расчёт ----
-    def run(self, ssu_type: SSUType, process: Process, fluid: Fluid) -> FlowResult:
-        ssu = self.build_ssu(ssu_type, D=process.D, d=process.d, taps=process.taps)
-        return self.calc_flow(ssu, fluid, process)
-
-
-__all__ = [
-    "CalculationAdapter",
-    "SSUType",
-    "Fluid",
-    "Process",
-    "FlowResult",
-    "run_calculation",
-]
-
-# ---- Удобная точка входа для main.py ----
-
-def run_calculation(
-    ssu_type: SSUType | str,
-    process: Optional[Process] = None,
-    fluid: Optional[Fluid] = None,
-    **kwargs: Any,
-) -> FlowResult:
-    """Гибкая обёртка, совместимая с разными стилями вызова из main.py.
-
-    Поддерживаемые способы:
-      1) run_calculation("orifice", D=..., d=..., dp=..., p1=..., t1=..., rho=..., mu=..., taps=..., is_gas=..., kappa=...)
-      2) run_calculation(SSUType.ORIFICE, process=Process(...), fluid=Fluid(...))
-      3) run_calculation("nozzle", process={...}, fluid={...})
-    """
-    # Нормализуем тип ССУ
-    if isinstance(ssu_type, str):
+    # Фолбэк: модульные функции в calc_flow.calcflow и calc_flow.main
+    for mod_name in ("calc_flow.calcflow", "calc_flow.main"):
         try:
-            ssu_type = SSUType(ssu_type.lower())
-        except ValueError as exc:
-            raise ValueError(f"Unknown ssu_type='{ssu_type}'. Expected one of: {[t.value for t in SSUType]}") from exc
+            mod = import_module(mod_name)
+        except Exception as exc:
+            _log.debug("Модуль %s: импорт не удался: %s", mod_name, exc)
+            continue
+        # Подсветим, что вообще есть в модуле — поможет согласовать имена
+        try:
+            avail = [n for n in dir(mod) if not n.startswith("_")]
+            _log.info("%s: доступно: %s", mod_name, ", ".join(sorted(avail)))
+        except Exception:
+            pass
+        for fname in method_candidates:
+            fn = getattr(mod, fname, None)
+            if not callable(fn):
+                continue
+            for call in ((prepared, v, raw), (v, raw), (v,), tuple()):
+                try:
+                    _log.info("Вызов %s.%s(%d args)", mod_name, fname, len(call))
+                    return fn(*call)
+                except TypeError:
+                    continue
 
-    # Если process/fluid переданы словарями — преобразуем
-    if isinstance(process, dict):
-        process = Process(**process)  # type: ignore[arg-type]
-    if isinstance(fluid, dict):
-        fluid = Fluid(**fluid)  # type: ignore[arg-type]
+    # Фолбэк 2: контроллер верхнего уровня (если есть в проекте)
+    for ctrl_mod_name in ("controllers.calculation_controller", "calculation_controller"):
+        try:
+            ctrl_mod = import_module(ctrl_mod_name)
+        except Exception as exc:
+            _log.debug("Контроллер %s: импорт не удался: %s", ctrl_mod_name, exc)
+            continue
+        # Ищем CalculationController
+        CC = getattr(ctrl_mod, "CalculationController", None)
+        if CC is None:
+            # попробуем найти любой класс с таким методом
+            for n in dir(ctrl_mod):
+                obj = getattr(ctrl_mod, n)
+                if hasattr(obj, "__name__") and "CalculationController" in n:
+                    CC = obj
+                    break
+        if CC is None:
+            continue
+        # Пытаемся создать и запустить run_calculations
+        try:
+            _log.info("Пробую %s.CalculationController(data, prepared)", ctrl_mod_name)
+            cc = CC(raw, prepared)
+            if hasattr(cc, "run_calculations") and callable(cc.run_calculations):
+                return cc.run_calculations()
+        except TypeError:
+            try:
+                _log.info("Пробую %s.CalculationController(prepared, raw)", ctrl_mod_name)
+                cc = CC(prepared, raw)
+                if hasattr(cc, "run_calculations") and callable(cc.run_calculations):
+                    return cc.run_calculations()
+            except Exception as exc:
+                _log.debug("Controller вызов не удался: %s", exc)
+                continue
 
-    # Если process/fluid не заданы — собираем из kwargs
-    if process is None:
-        required_p = ["D", "d", "dp", "p1", "t1"]
-        missing_p = [k for k in required_p if k not in kwargs]
-        if missing_p:
-            raise ValueError(f"Missing process keys: {missing_p}. Provide {required_p}.")
-        process = Process(
-            D=float(kwargs["D"]),
-            d=float(kwargs["d"]),
-            dp=float(kwargs["dp"]),
-            p1=float(kwargs["p1"]),
-            t1=float(kwargs["t1"]),
-            taps=kwargs.get("taps"),
-        )
-    if fluid is None:
-        required_f = ["rho", "mu"]
-        missing_f = [k for k in required_f if k not in kwargs]
-        if missing_f:
-            raise ValueError(f"Missing fluid keys: {missing_f}. Provide {required_f}.")
-        fluid = Fluid(
-            rho=float(kwargs["rho"]),
-            mu=float(kwargs["mu"]),
-            kappa=float(kwargs.get("kappa", 1.4)),
-            is_gas=bool(kwargs.get("is_gas", False)),
-        )
+    raise ImportError("Не найден CalcFlow, функции в calc_flow.* и CalculationController.run_calculations() не обнаружены/не вызвались")
+    for mod_name in ("calc_flow.calcflow", "calc_flow.main"):
+        try:
+            mod = import_module(mod_name)
+        except Exception:
+            continue
+        for fname in method_candidates:
+            fn = getattr(mod, fname, None)
+            if not callable(fn):
+                continue
+            for call in ((prepared, v, raw), (v, raw), (v,), tuple()):
+                try:
+                    _log.info("Вызов %s.%s(%d args)", mod_name, fname, len(call))
+                    return fn(*call)
+                except TypeError:
+                    continue
+    raise ImportError("Не найден CalcFlow и подходящие функции в calc_flow.calcflow / calc_flow.main")
 
-    adapter = CalculationAdapter()
-    return adapter.run(ssu_type, process, fluid)
+
+__all__ = ["run_calculation"]

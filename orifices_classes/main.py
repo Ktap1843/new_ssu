@@ -49,8 +49,7 @@ def create_orifice(name: str | OrificeType, **kwargs):
     sig = inspect.signature(cls.__init__)
     init_args = {
         k: v for k, v in kwargs.items()
-        if k in sig.parameters and k != "self"
-    }
+        if k in sig.parameters and k != "self"}
     inst = cls(**init_args)
     if not inst.validate():
         raise ValueError(f"Валидация геометрии ССУ '{name.value}' не пройдена")
@@ -62,12 +61,3 @@ def run_orifice(orifice, delta_p: float, **kwargs) -> dict:
         raise ValueError(f"Re для {orifice.__class__.__name__} вне допустимого диапазона")
     return out
 
-# def run_orifice(orifice, delta_p: float, **kwargs) -> dict:
-#     out = orifice.run_all(delta_p, **kwargs)
-#     if not orifice.check_Re():
-#         raise ValueError(f"Re для {orifice.__class__.__name__} вне допустимого диапазона")
-#     return out
-
-
-# def run_orifice(orifice, delta_p: float, **kwargs) -> dict:
-#     return orifice.run_all(delta_p, **kwargs)

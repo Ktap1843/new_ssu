@@ -1,4 +1,3 @@
-# file: orifices_classes/base_orifice.py
 from __future__ import annotations
 
 import math
