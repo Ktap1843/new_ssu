@@ -1,5 +1,5 @@
 {
-  "type": "cone",
+  "type": "eccentric",
   "ctrlRequest": { "steps": ["create_orifice", "calculate_flow"] },
   "physPackage": {
     "physProperties": {
@@ -16,12 +16,11 @@
   },
   "lenPackage": {
     "lenProperties": {
-      "d20": { "real": 70, "unit": "mm" },
-      "D20":   { "real": 100, "unit": "mm" },
-      "d20_steel": "12x18n10t",
-      "D20_steel": "12x18n10t",
-      "alpha": 12.0,
-      "Ra": { "real": 2.0, "unit": "um" }
+      "d20": { "real": 50, "unit": "mm" },
+      "D20":   { "real": 120, "unit": "mm" },
+      "d20_steel": "35l",
+      "D20_steel": "35l",
+      "Ra": { "real": 25.0, "unit": "um" }
     },
     "request": { "calc": false, "check": false }
   }

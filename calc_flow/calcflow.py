@@ -29,7 +29,7 @@ class CalcFlow:
     def estimate_reynolds(self) -> float:
         """п. 5.2.5"""
         if self.mu != 0:
-            self.Re = (4 * self.G) / (math.pi * self.D * self.mu)
+            self.Re = (4 * self.G) / (math.pi * self.D * self.mu * 0.000001) #todo опрос по вязкости
             logger.debug(f"Расчёт Re: {self.Re:.2f}")
         else:
             logger.warning("Вязкость (mu) равна 0. Re не может быть рассчитан")
@@ -47,8 +47,8 @@ class CalcFlow:
         """п. 5.2.2"""
         A = (math.pi * self.D ** 2) / 4
         self.G = self.beta**2 * self.C * self.E * self.epsilon * A * math.sqrt(2 * self.Ro * self.delta_p)
-        logger.debug(f"Массовый расход G: {self.G:.5f} кг/с")
-        return self.G * 3600  # кг/ч
+        logger.debug(f"Массовый расход G: {self.G * 3600:.5f} кг/ч")
+        return self.G #* 3600  # кг/ч
 
     def calc_standard_volume_flow(self):
         if self.G is None:

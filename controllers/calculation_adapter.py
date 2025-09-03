@@ -80,6 +80,8 @@ def run_calculation(*args: Any, **kwargs: Any):
         Ra_raw = lp.get("Ra")
         Ra_um = (Ra_raw.get("real") if isinstance(Ra_raw, dict) else Ra_raw)
         theta = lp.get("theta")
+        alpha_raw = lp.get("alpha")
+        alpha_lp = (alpha_raw.get("real") if isinstance(alpha_raw, dict) else alpha_raw)
     except Exception:
         d20_steel = D20_steel = Ra_um = theta = None
 
@@ -126,9 +128,12 @@ def run_calculation(*args: Any, **kwargs: Any):
     if not ssu_name:
         raise KeyError("В raw['type'] не задан тип ССУ (например: 'cone', 'orifice')")
 
-    # Обязательные параметры: alpha для некоторых типов (например, cone) — берём из theta, если alpha нет
-    if "alpha" not in v and theta is not None:
-        v["alpha"] = theta
+    # Обязательные параметры: alpha для некоторых типов (например, cone)
+    # приоритет: values_si['alpha'] → lenPackage.lenProperties.alpha → lenPackage.lenProperties.theta
+    if "alpha" not in v:
+        _alpha_val = alpha_lp if alpha_lp is not None else theta
+        if _alpha_val is not None:
+            v["alpha"] = _alpha_val
 
     # ВАЖНО: некоторым классам (например, Cone) нужен Re в __init__.
     # Берём Re из values_si, иначе подставляем ПУСКОВОЕ значение (как в вашем контроллере): 1.0e5.
@@ -203,7 +208,7 @@ def run_calculation(*args: Any, **kwargs: Any):
     # 2) Идём напрямую в calc_flow.calcflow
     _log.info("Маршрут: calc_flow.calcflow → CalcFlow | функции")
 
-    # Попытка: класс CalcFlow
+    # Попытка: класс CalcFlow — создаём строго по сигнатуре и запускаем run_all
     try:
         cf_mod = import_module("calc_flow.calcflow")
         CF = getattr(cf_mod, "CalcFlow", None)
@@ -211,127 +216,66 @@ def run_calculation(*args: Any, **kwargs: Any):
         CF = None
         _log.warning("Импорт calc_flow.calcflow не удался: %s", exc)
 
-    # Метод/функция из steps (если задан) или дефолтные имена
-    def _pick_step():
-        for s in steps:
-            if isinstance(s, str) and ("calc" in s.lower() or "run" in s.lower()):
-                return s
-        return None
-
-    picked = _pick_step()
-    method_candidates = [m for m in (picked, "run_calculations", "run", "calculate", "calc", "calculate_flow", "compute", "main") if m]
-
-    def _instantiate_CF(CF):
-        # 0) Попробуем по сигнатуре собрать kwargs с маппингом имён
-        try:
-            sig = inspect.signature(CF)
-            params = sig.parameters
-            kwargs = {}
-
-            # helpers to pull from values/raw
-            def _from_raw_phys(key: str):
-                try:
-                    node = raw.get("physPackage", {}).get("physProperties", {}).get(key)
-                    if isinstance(node, dict) and "real" in node:
-                        return node["real"]
-                    return node
-                except Exception:
-                    return None
-
-            for name, p in params.items():
-                lname = name.lower()
-                # direct matches by expected names in signature
-                if name == "p1":
-                    kwargs[name] = v.get("p1", v.get("p_abs", _from_raw_phys("p_abs")))
-                elif name == "t1":
-                    t = v.get("t1", v.get("T", _from_raw_phys("T")))
-                    if t is not None:
-                        t = float(t)
-                        if t < 200:  # °C → K
-                            t = t + 273.15
-                    kwargs[name] = t
-                elif lname in ("delta_p", "dp"):
-                    kwargs[name] = v.get("dp", _from_raw_phys("dp"))
-                elif lname == "mu":
-                    kwargs[name] = v.get("mu", _from_raw_phys("mu"))
-                elif name == "Roc":
-                    kwargs[name] = v.get("Roc", _from_raw_phys("Roc"))
-                elif name == "Ro":
-                    kwargs[name] = v.get("Ro", _from_raw_phys("Ro"))
-                elif lname == "k":
-                    # из values или raw.k.real
-                    kval = v.get("k")
-                    if kval is None:
-                        kval = _from_raw_phys("k")
-                        if isinstance(kval, dict) and "real" in kval:
-                            kval = kval["real"]
-                    kwargs[name] = kval
-                elif lname in ("orifice", "ssu", "meter", "device"):
-                    try:
-                        kwargs[name] = ssu
-                    except NameError:
-                        pass
-                elif name in v:
-                    kwargs[name] = v[name]
-                elif lname == "p":
-                    kwargs[name] = v.get("p1", v.get("p_abs", _from_raw_phys("p_abs")))
-                elif lname in ("t", "temp", "temperature"):
-                    t = v.get("t1", v.get("T", _from_raw_phys("T")))
-                    if t is not None:
-                        t = float(t)
-                        if t < 200:
-                            t = t + 273.15
-                    kwargs[name] = t
-                elif p.default is not inspect._empty:
-                    # optional → skip
-                    pass
-            _log.debug("Пробую CalcFlow(**%s)", list(kwargs.keys()))
-            return CF(**kwargs)
-        except Exception as e:
-            _log.debug("CalcFlow(**kwargs) не создан: %s", e)
-        # 1) Позиционные варианты
-        ctor_variants = [
-            (prepared, v, raw),
-            (v, raw),
-            (v,),
-            tuple(),
-        ]
-        for variant in ctor_variants:
-            try:
-                _log.debug("Пробую CalcFlow%r", tuple(type(x).__name__ for x in variant))
-                return CF(*variant)
-            except TypeError:
-                continue
-        return None
-
-    cf = None
     if CF is not None:
-        cf = _instantiate_CF(CF)
-
-    if cf is not None:
-        # Есть экземпляр; пробуем методы
-        # Лог сигнатуры класса, чтобы понять, что он ждёт
-        try:
-            _log.info("CalcFlow signature: %s", str(inspect.signature(cf.__class__)))
-        except Exception:
-            pass
-        for mname in method_candidates:
-            method = getattr(cf, mname, None)
-            if not callable(method):
-                continue
-            # Попытки вызова: без аргументов → (prepared,v,raw) → (v,raw) → (v,) → ()
+        # Подготовим позиционные аргументы в точном порядке конструктора
+        def _get_phys(key: str):
             try:
+                node = raw.get("physPackage", {}).get("physProperties", {}).get(key)
+                if isinstance(node, dict) and "real" in node:
+                    return node["real"]
+                return node
+            except Exception:
+                return None
+
+        d_ = float(v["d"])  # уже тёплый
+        D_ = float(v["D"])  # уже тёплый
+        p1_ = float(v.get("p1", v.get("p_abs", _get_phys("p_abs"))))
+        t_ = v.get("t1", v.get("T", _get_phys("T")))
+        t1_ = float(t_) + 273.15 if t_ is not None and float(t_) < 200 else float(t_)
+        dp_ = float(v.get("dp", _get_phys("dp")))
+        mu_ = float(v.get("mu", _get_phys("mu")))
+        Roc_ = float(v.get("Roc", _get_phys("Roc")))
+        Ro_ = float(v.get("Ro", _get_phys("Ro")))
+        k_ = float(v.get("k", _get_phys("k")))
+
+        pos_args = (d_, D_, p1_, t1_, dp_, mu_, Roc_, Ro_, k_, ssu)
+        _log.debug("Пробую CalcFlow(*positional %d args)", len(pos_args))
+        cf = CF(*pos_args)
+
+        # Прокинем коэффициенты из результатов ССУ (если есть)
+        ssu_results = v.get("ssu_results") or {}
+        try:
+            # C
+            C_val = ssu_results.get("C")
+            if C_val is not None:
+                cf.C = float(C_val)
+            # E (или E_speed)
+            E_val = ssu_results.get("E", ssu_results.get("E_speed"))
+            if E_val is not None:
+                cf.E = float(E_val)
+            # epsilon (или Epsilon)
+            eps_val = ssu_results.get("epsilon", ssu_results.get("Epsilon"))
+            if eps_val is not None:
+                cf.epsilon = float(eps_val)
+            # beta (если нет — d/D)
+            beta_val = ssu_results.get("beta")
+            if beta_val is None and D_:
+                beta_val = d_ / D_
+            if beta_val is not None:
+                cf.beta = float(beta_val)
+        except Exception as e:
+            _log.warning("Не удалось установить коэффициенты из SSU: %s", e)
+
+        # Запуск полного расчёта
+        if hasattr(cf, "run_all") and callable(cf.run_all):
+            _log.info("Вызов CalcFlow.run_all()")
+            return cf.run_all()
+        # Резервные имена метода старта
+        for mname in ("run", "run_calculations", "calculate", "calc", "compute", "main", "start"):
+            method = getattr(cf, mname, None)
+            if callable(method):
                 _log.info("Вызов CalcFlow.%s()", mname)
                 return method()
-            except TypeError:
-                pass
-            for call in ((prepared, v, raw), (v, raw), (v,), tuple()):
-                try:
-                    _log.info("Вызов CalcFlow.%s(%d args)", mname, len(call))
-                    return method(*call)
-                except TypeError:
-                    continue
-        _log.warning("Не нашли подходящий метод в CalcFlow — попробуем модульные функции")
 
     # Фолбэк: модульные функции в calc_flow.calcflow и calc_flow.main
     for mod_name in ("calc_flow.calcflow", "calc_flow.main"):
