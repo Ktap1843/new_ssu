@@ -6,8 +6,10 @@ class WearResistantOrifice(BaseOrifice):
     """
     def __init__(self, D: float, d: float, Re: float):
         super().__init__(D, d, Re)
-        self.set_beta(d / D)
 
+
+    def _beta_from_geometry(self):
+        return round(self.d / self.D, 12)
 
     def _validate(self) -> bool:
         beta = self.calculate_beta()
@@ -103,9 +105,10 @@ class WearResistantOrifice(BaseOrifice):
 
     def _Cc(self) -> float:
         beta = self.calculate_beta()
-        if beta <= 0.3**0.5:
+        #todo почему промежутки не сделали кв корень
+        if beta <= 0.54:
             return 0.5950 + 0.04 * beta**2 + 0.3 * beta**4
-        if beta <= 0.5**0.5:
+        if beta <= 70:
             return 0.6100 - 0.055 * beta**2 + 0.45 * beta**4
         return 0.3495 + 1.4454 * beta**2 - 2.4249 * beta**4 + 1.8333 * beta**6
 
@@ -121,11 +124,13 @@ class WearResistantOrifice(BaseOrifice):
             return (1.0068 + 1.03585/d_mm) * Cc * invE
         return (0.99626 + 3.2554/d_mm - 124.627/d_mm**2) * Cc * invE
 
-    # def delta_C(self) -> float:
+    # def discharge_coefficient_uncertainty(self) -> float:
+    #     """
+    #     Относительная погрешность коэффициента истечения
+    #     """
     #     beta = self.calculate_beta()
-    #     if beta <= 0.63:
-    #         return 0.002
-    #     return 0.8*beta**2 - 0.1
+    #     if beta <= 0.63: return 0.2
+    #     elif beta > 0.6: return 0.8 * beta**2 - 0.1
 
     def calculate_epsilon(self, delta_p: float, p: float, k: float) -> float:
         """
@@ -137,8 +142,11 @@ class WearResistantOrifice(BaseOrifice):
             raise ValueError("Δp/p > 0.25")
         return 1 - (0.351 + 0.256 * beta**4 + 0.93 * beta**8) * (1 - (1 - dp_p)**(1/k))
 
-    # def delta_epsilon(self, delta_p: float, p1: float, k: float) -> float:
-    #     return 3.5 * (delta_p / (k * p1))
+    # def delta_epsilon(self, delta_p: float, p: float, k: float) -> float:
+    #     """
+    #     Относительная погрешность
+    #     """
+    #     return 3.5 * (delta_p / (k * p))
 
     def pressure_loss(self, delta_p: float) -> float:
         beta = self.calculate_beta()

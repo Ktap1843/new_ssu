@@ -1,86 +1,26 @@
 {
   "meta": {
-    "ts": "2025-09-02T11:14:37.829278Z",
+    "ts": "2025-09-03T12:16:43.079238Z",
     "input": "inputdata\\sharp_01.json",
     "type": "sharp",
     "methodic": "otHER",
     "controller": "CalculationController"
   },
   "remarks": [
-    "[OK] p_abs <- physPackage/physProperties/p_abs → 4e+06 Pa",
+    "[OK] p_abs <- physPackage/physProperties/p_abs → 2e+06 Pa",
     "[OK] p_atm <- physPackage/physProperties/p_atm → 101323.20 Pa",
     "[OK] p_st <- physPackage/physProperties/p_st → 101325 Pa",
-    "[OK] dp <- physPackage/physProperties/dp → 20000 Pa",
+    "[OK] dp <- physPackage/physProperties/dp → 28000 Pa",
     "[OK] T <- physPackage/physProperties/T → 15 C",
     "[OK] T_st <- physPackage/physProperties/T_st → 20 C",
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.020 m",
-    "[OK] D20 <- lenPackage/lenProperties/D → 0.050 m"
+    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.050 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x00000246A9FF1710>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000002557FF86710>",
   "result": {
-    "status": "ok",
-    "steps": [
-      "_create_orifice",
-      "_calculate_flow"
-    ],
-    "orifice": "<orifices_classes.sharp_edge_orifice.SharpEdgeOrifice object at 0x00000246A9FE5B50>",
-    "adapter_debug": {
-      "construct_attempts": [
-        "try: __init__()",
-        "__init__() TypeError: CalculationController.__init__() missing 2 required positional arguments: 'data' and 'prepared_params'",
-        "try: __init__(**kw:['data', 'prepared_params'])",
-        "__init__(**kw) Exception: 'flowdata'",
-        "try: __init__(**kw_legacy:['data', 'prepared_params'])"
-      ],
-      "skip_physics_due_to_methodic": true,
-      "methodic_value": "otHER",
-      "create_orifice_inputs": {
-        "constrictor_params": {
-          "d20": {
-            "real": 20,
-            "unit": "mm"
-          },
-          "D20": {
-            "real": 50,
-            "unit": "mm"
-          },
-          "d20_steel": "35l",
-          "D20_steel": "35l",
-          "type": "sharp",
-          "Ra": 3.0,
-          "e": 0.0005,
-          "Ed": 0.001,
-          "alpha": 35.0
-        },
-        "environment_parameters": {
-          "p": 4000000.0,
-          "dp": 20000.0,
-          "T": 15.0
-        },
-        "straightness_params": {
-          "D": {
-            "real": 50,
-            "unit": "mm"
-          },
-          "DN": null,
-          "measSection": null,
-          "localResistance": null,
-          "lensCompliance": null,
-          "calc": false,
-          "check": false,
-          "usingCorrectionFactor": true,
-          "DLessThan1p": true
-        },
-        "physical_properties": {
-          "R": null,
-          "Z": null,
-          "k": 1.4,
-          "Roc": 0.68,
-          "aggregate_state": "gas",
-          "Ro": 0.7,
-          "mu": 18.5
-        }
-      }
-    }
+    "mass_flow": 0.03800259317350771,
+    "Re": 48388.9375918755,
+    "volume_flow_actual": 0.054289418819296734,
+    "volume_flow_std": 0.055886166431628984
   }
 }

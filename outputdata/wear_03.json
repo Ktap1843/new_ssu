@@ -1,7 +1,7 @@
 {
   "meta": {
-    "ts": "2025-09-03T12:16:30.763872Z",
-    "input": "inputdata\\wear_01.json",
+    "ts": "2025-09-03T12:16:43.112239Z",
+    "input": "inputdata\\wear_03.json",
     "type": "wear",
     "methodic": "otHER",
     "controller": "CalculationController"
@@ -13,14 +13,14 @@
     "[OK] dp <- physPackage/physProperties/dp → 8000 Pa",
     "[OK] T <- physPackage/physProperties/T → 12 C",
     "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.120 m",
-    "[OK] D20 <- lenPackage/lenProperties/D → 0.195 m"
+    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
+    "[OK] D20 <- lenPackage/lenProperties/D → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000002052DFB2810>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000002557FF87050>",
   "result": {
-    "mass_flow": 0.7819962545326604,
-    "Re": 291795.34789430187,
-    "volume_flow_actual": 1.1499944919597946,
-    "volume_flow_std": 1.2030711608194775
+    "mass_flow": 0.13109759929785295,
+    "Re": 95390.04218794868,
+    "volume_flow_actual": 0.19279058720272488,
+    "volume_flow_std": 0.20168861430438914
   }
 }

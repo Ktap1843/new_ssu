@@ -1,5 +1,8 @@
 from .base_orifice import BaseOrifice
 import math
+from logger_config import get_logger
+
+logger = get_logger("SegmentOrifice")
 
 class SegmentOrifice(BaseOrifice):
     """
@@ -7,13 +10,14 @@ class SegmentOrifice(BaseOrifice):
     """
     def __init__(self, D: float, d: float, Re: float, p: float):
         super().__init__(D, d, Re)
-        self.d = d
+        self.d = d  #считаю H, как d т.к. запрашиваем из одного окна на форме
         self.p = p
-        x = 1 - 2 * d / D
-        beta = math.sqrt( (math.acos(x) / math.pi) - (x / math.pi) * math.sqrt(1 - x**2) )
-        self.set_beta(beta)
 
 
+
+    def _beta_from_geometry(self):
+        x = 1 - 2 * self.d / self.D
+        return math.sqrt( (math.acos(x) / math.pi) - (x / math.pi) * math.sqrt(1 - x**2) )
 
     def _validate(self) -> bool:
         beta = self.calculate_beta()
@@ -21,7 +25,7 @@ class SegmentOrifice(BaseOrifice):
         Hd = self.d / self.D
         if not (0.05 <= self.D <= 1.0 and 0.00798 <= self.d <= 0.49207 and
                 0.158 <= Hd <= 0.492 and 0.32 <= beta <= 0.7):
-            print(f"[Validation error]{self.__class__.__name__}: D={self.D}, H={self.d}, H/D={Hd:.3f}, β={beta:.3f}")
+            logger.error(f"[Validation error]{self.__class__.__name__}: D={self.D}, H={self.d}, H/D={Hd:.3f}, β={beta:.3f}")
             return False
         # # 9.3.1.1 Толщина Ed ≤ 0.05·D
         # if self.Ed is not None and self.Ed > 0.05 * self.D:
@@ -83,7 +87,7 @@ class SegmentOrifice(BaseOrifice):
         Re_min = 41270 - 257222 * beta + 525533 * beta**2 - 232389 * beta**3
         Re_max = 1e6
         if not (Re_min <= self.Re <= Re_max):
-            print(f"[Re check] {self.__class__.__name__}: "
+            logger.error(f"[Re check] {self.__class__.__name__}: "
                   f"Re={self.Re:.0f} вне [{Re_min:.0f}; {Re_max:.0f}]")
             return False
         return True
@@ -94,7 +98,6 @@ class SegmentOrifice(BaseOrifice):
         E = self.calculate_E()
         return (0.6085 - 0.03427 * beta**2 + 0.3237 * beta**4 + 0.00695 * beta**6) * (1/E)
 
-    #todo потом можно вкл
     # def delta_C(self) -> float:
     #     """Относительная погрешность п.9.4.1"""
     #     beta = self.calculate_beta()
@@ -107,7 +110,6 @@ class SegmentOrifice(BaseOrifice):
         beta = self.calculate_beta()
         return 1 - (0.41 + 0.351 * beta**4) * delta_p / k / self.p
 
-    # todo потом можно вкл
     # def delta_epsilon(self, delta_p: float) -> float:
     #     """Относительная погрешность ε по §9.4.2"""
     #     return 4 * (delta_p / self.p)

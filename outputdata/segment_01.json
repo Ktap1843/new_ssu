@@ -1,8 +1,8 @@
 {
   "meta": {
-    "ts": "2025-09-03T12:16:43.051234Z",
-    "input": "inputdata\\cone_01.json",
-    "type": "cone",
+    "ts": "2025-09-03T12:16:43.071235Z",
+    "input": "inputdata\\segment_01.json",
+    "type": "segment",
     "methodic": "otHER",
     "controller": "CalculationController"
   },
@@ -13,14 +13,14 @@
     "[OK] dp <- physPackage/physProperties/dp → 15000 Pa",
     "[OK] T <- physPackage/physProperties/T → 18 C",
     "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.070 m",
-    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
+    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
+    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.120 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000025577FFF0D0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000002557FF86350>",
   "result": {
-    "mass_flow": 0.5599280101601046,
-    "Re": 375234.61125807,
-    "volume_flow_actual": 0.7776777918890342,
-    "volume_flow_std": 0.8748875158751634
+    "mass_flow": 0.42263660572108364,
+    "Re": 236021.47064905116,
+    "volume_flow_actual": 0.5869952857237273,
+    "volume_flow_std": 0.6603696964391932
   }
 }

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T12:16:30.763872Z",
+    "ts": "2025-09-03T12:16:43.091236Z",
     "input": "inputdata\\wear_01.json",
     "type": "wear",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.120 m",
     "[OK] D20 <- lenPackage/lenProperties/D → 0.195 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000002052DFB2810>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000002557FF86350>",
   "result": {
     "mass_flow": 0.7819962545326604,
     "Re": 291795.34789430187,

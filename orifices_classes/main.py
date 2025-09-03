@@ -28,11 +28,11 @@ class OrificeType(Enum):
     CONE = "cone"
 
 _mapping = {
-    OrificeType.SHARP:              SharpEdgeOrifice,   #todo убираю при переносе
+    OrificeType.SHARP:              SharpEdgeOrifice,
     OrificeType.CONICAL:            ConicalInletOrifice,    #todo убираю при переносе
-    OrificeType.WEAR:               WearResistantOrifice,   #todo убираю при переносе
+    OrificeType.WEAR:               WearResistantOrifice,
     OrificeType.DOUBLE:             DoubleOrifice,
-    OrificeType.SEGMENT:            SegmentOrifice, #todo убираю при переносе
+    OrificeType.SEGMENT:            SegmentOrifice,
     OrificeType.ECCENTRIC:          EccentricOrifice,
     OrificeType.QUARTER:            QuarterCircleOrifice,   #todo убираю при переносе
     OrificeType.QUARTER_NOZZLE:     QuarterCircleNozzle,    #todo убираю при переносе

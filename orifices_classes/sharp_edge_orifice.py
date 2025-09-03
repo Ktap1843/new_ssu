@@ -1,6 +1,10 @@
 from .base_orifice import BaseOrifice
 import math
 
+from logger_config import get_logger
+
+logger = get_logger("SharpEdgeOrifice")
+
 class SharpEdgeOrifice(BaseOrifice):
     """
     Диафрагма с прямоугольным входом
@@ -8,16 +12,17 @@ class SharpEdgeOrifice(BaseOrifice):
     def __init__(self, D: float, d: float, Re: float, p: float):
         super().__init__(D, d, Re)
         self.p = p
-        self.set_beta(d / D)
 
+    def _beta_from_geometry(self):
+        return round(self.d / self.D, 12)
 
     def _validate(self) -> bool:
         """
         п.5.3
         """
         beta = self.calculate_beta()
-        if not (0.014 <= self.D <= 0.05 and 0.007 <= self.d <= 0.04):
-            print(f"[Validation error]{self.__class__.__name__}: D={self.D} или d={self.d} вне диапазона")
+        if not (0.014 <= self.D <= 0.05 and 0.007 <= self.d <= 0.04 and 0.22 <= beta <= 0.8):
+            logger.error(f"[Validation error]{self.__class__.__name__}: D={self.D} или d={self.d} или beta={beta} вне диапазона")
             return False
         return True
 
@@ -43,7 +48,7 @@ class SharpEdgeOrifice(BaseOrifice):
         Re_min = 8.4e5 * beta ** 2 - 4.5e5 * beta + 0.86e5
         Re_max = 1e7
         if not (Re_min <= self.Re <= Re_max):
-            print(
+            logger.error(
                 f"[Validation error]{self.__class__.__name__}: "
                 f"Re={self.Re:.0f} вне допустимого диапазона "
                 f"[{Re_min:.0f}; {Re_max:.0f}]"
@@ -52,13 +57,13 @@ class SharpEdgeOrifice(BaseOrifice):
         return True
 
     def _Cc(self) -> float:
-        #todo тут тоже промежутки поправить
+        #todo gпоменялись коэффициенты
         beta = self.calculate_beta()
-        if beta <= 0.55:
-            return 0.5950 + 0.2 * beta + 0.547 * beta**2
-        if beta <= 0.71:
-            return 0.6100 - 0.235 * beta + 0.671 * beta**2
-        return 0.3495 + 1.202 * beta - 1.557 * beta**2 + 1.354 * beta**3
+        if beta <= 0.548:
+            return 0.5950 + 0.04 * beta**2 + 0.3 * beta**4
+        if beta <= 0.707:
+            return 0.6100 - 0.55 * beta**2 + 0.45 * beta**4
+        return 0.3495 + 1,4454 * beta**2 - 2,4249 * beta**4 + 1.8333 * beta**6
 
     def calculate_C(self, *args, **kwargs) -> float:
         """(5.2),(5.3)"""
@@ -72,6 +77,15 @@ class SharpEdgeOrifice(BaseOrifice):
             return (1.0068 + 0.08287 / d_mm) * Cc * invE
         raise ValueError(f"Недопустимый d_mm={d_mm}")
 
+    # def discharge_coefficient_uncertainty(self) -> float:
+    #     """
+    #     Относительная погрешность коэффициента истечения
+    #     """
+    #     beta = self.calculate_beta()
+    #     if beta <= 0.6: x = 0.09
+    #     elif beta > 0.6: x = 0.25
+    #     return ((0.005/ self.d + 0.2)**2 + x * beta**2)**0.5
+
     def calculate_epsilon(self, delta_p: float, k: float, *args, **kwargs) -> float:
         """п.5.6"""
         beta = self.calculate_beta()
@@ -79,6 +93,15 @@ class SharpEdgeOrifice(BaseOrifice):
         if ratio > 0.25:
             raise ValueError("Δp/p > 0.25")
         return 1 - (0.41 + 0.35 * beta**4) * ratio / k
+
+    # def expansion_coefficient_uncertainty(self, dp_p: float) -> float:
+    #     """
+    #     Относительная погрешность
+    #     """
+    #     beta = self.calculate_beta()
+    #     if beta <= 0.75: n = 2
+    #     elif beta > 0.75: n = 4
+    #     return n * dp_p
 
     def pressure_loss(self, delta_p: float, *args, **kwargs) -> float:
         """п.5.5"""

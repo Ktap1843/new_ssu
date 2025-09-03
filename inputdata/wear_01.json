@@ -9,6 +9,7 @@
       "p_abs": { "real": 2.0, "unit": "MPa" },
       "dp":    { "real": 8, "unit": "kPa" },
       "Ro": { "real": 0.68 },
+      "Roc": { "real": 0.65 },
       "k":  { "real": 1.35 },
       "mu": { "real": 17.5, "unit": "uPa_s" }
     }
