@@ -111,7 +111,7 @@ class SegmentOrifice(BaseOrifice):
         return 1 - (0.41 + 0.351 * beta**4) * delta_p / k / self.p
 
     # def delta_epsilon(self, delta_p: float) -> float:
-    #     """Относительная погрешность ε по §9.4.2"""
+    #     """Относительная погрешность п. 9.4.2"""
     #     return 4 * (delta_p / self.p)
 
     def pressure_loss(self, delta_p: float) -> float:
