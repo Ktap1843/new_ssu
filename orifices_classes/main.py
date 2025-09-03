@@ -31,7 +31,7 @@ _mapping = {
     OrificeType.SHARP:              SharpEdgeOrifice,   #todo убираю при переносе
     OrificeType.CONICAL:            ConicalInletOrifice,    #todo убираю при переносе
     OrificeType.WEAR:               WearResistantOrifice,   #todo убираю при переносе
-    OrificeType.DOUBLE:             DoubleOrifice,  #todo убираю при переносе
+    OrificeType.DOUBLE:             DoubleOrifice,
     OrificeType.SEGMENT:            SegmentOrifice, #todo убираю при переносе
     OrificeType.ECCENTRIC:          EccentricOrifice,   #todo убираю при переносе
     OrificeType.QUARTER:            QuarterCircleOrifice,   #todo убираю при переносе

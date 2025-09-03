@@ -5,11 +5,10 @@ class EccentricOrifice(BaseOrifice):
     """
     Эксцентричная диафрагма
     """
-    def __init__(self, D: float, d: float, Re: float, p1: float, Ra: float):
+    def __init__(self, D: float, d: float, Re: float, p: float, Ra: float):
         super().__init__(D, d, Re)
-        self.p1 = p1      # начальное давление
+        self.p = p      # начальное давление
         self.Ra = Ra      # шероховатость трубопровода
-        self.set_beta(d / D)
         # # Геометрические параметры
         # self.e = e
         # self.Ed = Ed
@@ -22,9 +21,15 @@ class EccentricOrifice(BaseOrifice):
         # # Инверсивный поток
         # self.inversion = inversion  #bool
 
+    def _beta_from_geometry(self):
+        return round(self.d / self.D, 12)
+
 
     def _validate(self) -> bool:
-        #beta = self.calculate_beta()
+        beta = self.calculate_beta()
+        if not (0.015 <= self.d and 0.5 <= self.D and 0.245 <= beta <= 0.6):
+            logger.warning(f"[Validation error]{self.__class__.__name__}: d={self.d}, D={self.D}, β={beta:.3f}")
+            return False
         # Базовые ограничения по п.10.3 (диапазоны D, d, β уже проверяются в базовом классе)
         # 10.3.1.1 Толщина Ed ≤ 0.05·D
         # if self.Ed is not None and self.Ed > 0.05 * self.D:
@@ -121,14 +126,26 @@ class EccentricOrifice(BaseOrifice):
             raise
         return C0 * FE / E
 
+    # def discharge_coefficient_uncertainty(self) -> float:
+    #     """
+    #     Относительная погрешность коэффициента истечения
+    #     """
+    #     return 0.5
+
     def calculate_epsilon(self, delta_p: float, k: float) -> float:
         """Коэффициент расширения п.10.4.2"""
-        ratio = delta_p / self.p1
+        ratio = delta_p / self.p
         if ratio > 0.25:
-            logger.error(f"[Epsilon error] Δp/p1 = {ratio:.3f} > 0.25 — расчёт невозможен")
-            raise ValueError("Δp/p1 > 0.25")
+            logger.error(f"[Epsilon error] Δp/p = {ratio:.3f} > 0.25 — расчёт невозможен")
+            raise ValueError("Δp/p > 0.25")
         beta = self.calculate_beta()
         return 1 - (0.351 + 0.256 * beta**4 + 0.93 * beta**8) * (1 - ratio**(1/k))
+
+    # def expansion_coefficient_uncertainty(self, dp_p: float, k: float) -> float:
+    #     """
+    #     Относительная погрешность
+    #     """
+    #     return 3.5 * dp_p / k
 
     def pressure_loss(self, delta_p: float) -> float:
         """Потери давления п.10.5"""
