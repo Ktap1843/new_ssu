@@ -1,5 +1,7 @@
 from .base_orifice import BaseOrifice
 import math
+from logger_config import get_logger
+logger = get_logger("EccentricOrifice")
 
 class EccentricOrifice(BaseOrifice):
     """

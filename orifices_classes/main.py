@@ -33,7 +33,7 @@ _mapping = {
     OrificeType.WEAR:               WearResistantOrifice,   #todo убираю при переносе
     OrificeType.DOUBLE:             DoubleOrifice,
     OrificeType.SEGMENT:            SegmentOrifice, #todo убираю при переносе
-    OrificeType.ECCENTRIC:          EccentricOrifice,   #todo убираю при переносе
+    OrificeType.ECCENTRIC:          EccentricOrifice,
     OrificeType.QUARTER:            QuarterCircleOrifice,   #todo убираю при переносе
     OrificeType.QUARTER_NOZZLE:     QuarterCircleNozzle,    #todo убираю при переносе
     OrificeType.CYLINDRICAL_NOZZLE: CylindricalNozzle,  #todo убираю при переносе

@@ -78,7 +78,22 @@ def run_calculation(*args: Any, **kwargs: Any):
         d20_steel = lp.get("d20_steel")
         D20_steel = lp.get("D20_steel")
         Ra_raw = lp.get("Ra")
-        Ra_um = (Ra_raw.get("real") if isinstance(Ra_raw, dict) else Ra_raw)
+        # Нормализуем Ra в метры (поддержка unit: um, µm, mm, m)
+        Ra_m = None
+        if isinstance(Ra_raw, dict):
+            _ra_real = Ra_raw.get("real")
+            _ra_unit = str(Ra_raw.get("unit") or "").lower()
+            if _ra_real is not None:
+                if "µ" in _ra_unit or "um" in _ra_unit:
+                    Ra_m = float(_ra_real) * 1e-6
+                elif "mm" in _ra_unit:
+                    Ra_m = float(_ra_real) * 1e-3
+                else:
+                    # считаем в метрах по умолчанию
+                    Ra_m = float(_ra_real)
+        elif Ra_raw is not None:
+            # если пришло число без unit — считаем в метрах
+            Ra_m = float(Ra_raw)
         theta = lp.get("theta")
         alpha_raw = lp.get("alpha")
         alpha_lp = (alpha_raw.get("real") if isinstance(alpha_raw, dict) else alpha_raw)
@@ -135,7 +150,7 @@ def run_calculation(*args: Any, **kwargs: Any):
         if _alpha_val is not None:
             v["alpha"] = _alpha_val
 
-    # DoubleOrifice ожидает параметр 'p' в __init__. Маппим p1/p_abs → p (без изменений алгоритма).
+    # Давление для DoubleOrifice и др.: p ← p1/p_abs
     if "p" not in v:
         try:
             _p_node = raw.get("physPackage", {}).get("physProperties", {}).get("p_abs")
@@ -144,8 +159,11 @@ def run_calculation(*args: Any, **kwargs: Any):
             _p_from_raw = None
         v["p"] = v.get("p1", v.get("p_abs", _p_from_raw))
 
-    # ВАЖНО: некоторым классам (например, Cone) нужен Re в __init__.
-    # Берём Re из values_si, иначе подставляем ПУСКОВОЕ значение (как в вашем контроллере): 1.0e5.
+    # Шероховатость для EccentricOrifice и подобных: Ra в МЕТРАХ
+    if Ra_m is not None:
+        v["Ra"] = Ra_m
+
+    # ВАЖНО: некоторым классам нужен Re в __init__. Берём из values_si, иначе пусковой.
     if "Re" not in v or v["Re"] is None:
         v["Re"] = 1.0e5
 
@@ -190,10 +208,10 @@ def run_calculation(*args: Any, **kwargs: Any):
         if not ssu.validate():
             raise ValueError(f"Валидация геометрии ССУ '{ssu_name}' не пройдена")
 
-    # Шероховатость, если задана (Ra в микрометрах)
+    # Шероховатость, если задана (в метрах)
     try:
-        if Ra_um is not None and hasattr(ssu, "validate_roughness"):
-            valid_rough = ssu.validate_roughness(float(Ra_um) / 1000.0)
+        if Ra_m is not None and hasattr(ssu, "validate_roughness"):
+            valid_rough = ssu.validate_roughness(float(Ra_m))
             v["valid_roughness"] = bool(valid_rough)
     except Exception as e:
         _log.warning("validate_roughness не выполнен: %s", e)
@@ -208,7 +226,7 @@ def run_calculation(*args: Any, **kwargs: Any):
             k_val = v.get("k") or raw.get("physPackage", {}).get("physProperties", {}).get("k", {}).get("real") if isinstance(raw.get("physPackage", {}), dict) else None
             ssu_results = ssu.run_all(
                 delta_p=delta_p, p=p_in, k=k_val,
-                Ra=(float(Ra_um)/1000.0) if Ra_um is not None else None,
+                Ra=float(Ra_m) if Ra_m is not None else None,
                 alpha=v.get("alpha"),
             )
             v["ssu_results"] = ssu_results

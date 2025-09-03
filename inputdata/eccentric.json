@@ -16,8 +16,8 @@
   },
   "lenPackage": {
     "lenProperties": {
-      "d20": { "real": 50, "unit": "mm" },
-      "D20":   { "real": 120, "unit": "mm" },
+      "d20": { "real": 220, "unit": "mm" },
+      "D20":   { "real": 520, "unit": "mm" },
       "d20_steel": "35l",
       "D20_steel": "35l",
       "Ra": { "real": 25.0, "unit": "um" }
