@@ -12,7 +12,6 @@ class ConeFlowMeter(BaseOrifice):
         super().__init__(D, d, Re)
         self.alpha = alpha
         # todo = d_k(делал как d -- нужно ли поправку по температуре делать) / D
-        #self.beta = self._beta_from_geometry(d, D)
 
     def _beta_from_geometry(self):
         return (1 - (self.d / self.D)**2)**0.5

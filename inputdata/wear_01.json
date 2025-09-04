@@ -31,7 +31,6 @@
                     {"type": "thermowell_003D_013D"}
              ],
              "skip": false
-    },
-    "request": { "calc": false, "check": false }
+    }
   }
 }

@@ -28,7 +28,6 @@
                  {"type": "control_reg_valve_100"}],
              "ms_after": [],
              "skip": true
-    },
-    "request": { "calc": false, "check": false }
+    }
   }
 }

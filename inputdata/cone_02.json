@@ -16,7 +16,7 @@
   },
   "lenPackage": {
     "lenProperties": {
-      "d20": { "real": 150, "unit": "mm" },
+      "d20": { "real": 200, "unit": "mm" },
       "D20":   { "real": 290, "unit": "mm" },
       "d20_steel": "12x18n10t",
       "D20_steel": "12x18n10t",
@@ -32,7 +32,7 @@
              {"type": "unknown_valve"}
          ],
              "skip": false
-    },
-    "request": { "calc": false, "check": false }
+    }
+
   }
 }

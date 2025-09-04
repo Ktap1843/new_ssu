@@ -53,10 +53,6 @@
       "Ra": {
         "real": 2.0,
         "unit": "um"
-      },
-      "request": {
-        "calc": false,
-        "check": false
       }
     },
     "straightness": {

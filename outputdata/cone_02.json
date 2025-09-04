@@ -1,7 +1,7 @@
 {
   "meta": {
-    "ts": "2025-09-04T07:33:54.660369Z",
-    "input": "inputdata\\cone_01.json",
+    "ts": "2025-09-04T07:33:54.669369Z",
+    "input": "inputdata\\cone_02.json",
     "type": "cone",
     "methodic": "otHER",
     "controller": "CalculationController"
@@ -13,14 +13,14 @@
     "[OK] dp <- physPackage/physProperties/dp → 15000 Pa",
     "[OK] T <- physPackage/physProperties/T → 18 C",
     "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.070 m",
-    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
+    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.200 m",
+    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.290 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F375FF3D0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F3F551E50>",
   "result": {
     "type": "cone",
-    "D": 0.0999967351444,
-    "d": 0.06999771460108001,
+    "D": 0.28999053191875995,
+    "d": 0.1999934702888,
     "p1": 3200000.0,
     "t1": 291.15,
     "dp": 15000.0,
@@ -29,31 +29,31 @@
     "Ro": 0.72,
     "k": 1.37,
     "C": 0.82,
-    "E": 1.1625549411016565,
-    "epsilon": 0.99780638875,
-    "beta": 0.714142842854285,
+    "E": 1.1744160762373805,
+    "epsilon": 0.9978549018640576,
+    "beta": 0.7241379310344828,
     "ssu_results": {
-      "beta": 0.714142842854285,
-      "E_speed": 1.1625549411016565,
+      "beta": 0.7241379310344828,
+      "E_speed": 1.1744160762373805,
       "straightness": null,
       "C": 0.82,
       "ssu_params": {},
-      "Epsilon": 0.99780638875,
-      "pressure_loss": 7641.028031391997
+      "Epsilon": 0.9978549018640576,
+      "pressure_loss": 7519.1379310344855
     },
     "flow": {
-      "mass_flow": 0.5599280101601046,
-      "Re": 375234.61125807,
-      "volume_flow_actual": 0.7776777918890342,
-      "volume_flow_std": 0.8748875158751634
+      "mass_flow": 4.891366702294507,
+      "Re": 1130323.9294263572,
+      "volume_flow_actual": 6.7935648642979265,
+      "volume_flow_std": 7.6427604723351665
     },
     "straightness": {
       "skip": false,
       "length_first_ms_to_ssu_D": 0,
       "length_between_ms_D": null,
       "length_after_SSU": 2,
-      "relative_roughness_Ra_D": 2.000065299243926e-05,
-      "roughness_limit_Ra_D": 0.004,
+      "relative_roughness_Ra_D": 6.8967768939445736e-06,
+      "roughness_limit_Ra_D": 0.004020689655172414,
       "is_smooth_pipe": true
     }
   }

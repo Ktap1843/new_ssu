@@ -31,7 +31,6 @@
              {"type": "cock"}
          ],
              "skip": false
-    },
-    "request": { "calc": false, "check": false }
+    }
   }
 }

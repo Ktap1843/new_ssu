@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:52:03.124475Z",
+    "ts": "2025-09-04T07:33:54.813906Z",
     "input": "inputdata\\wedge_02.json",
     "type": "wedge",
     "methodic": "otHER",
@@ -16,11 +16,45 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.040 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.195 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797E543D0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F3F5BEB90>",
   "result": {
-    "mass_flow": 0.3411073340627376,
-    "Re": 127281.34263458585,
-    "volume_flow_actual": 0.5016284324452023,
-    "volume_flow_std": 0.5247805139426732
+    "type": "wedge",
+    "D": 0.19498373232,
+    "d": 0.03999666304,
+    "p1": 2000000.0,
+    "t1": 285.15,
+    "dp": 8000.0,
+    "mu": 17.5,
+    "Roc": 0.65,
+    "Ro": 0.68,
+    "k": 1.35,
+    "C": 0.7354199751770787,
+    "E": 1.0110782647965724,
+    "epsilon": 0.9977096913833214,
+    "beta": 0.3842224980324593,
+    "ssu_results": {
+      "beta": 0.3842224980324593,
+      "E_speed": 1.0110782647965724,
+      "straightness": null,
+      "C": 0.7354199751770787,
+      "ssu_params": {},
+      "Epsilon": 0.9977096913833214,
+      "pressure_loss": 6291.713812434858
+    },
+    "flow": {
+      "mass_flow": 0.3411073340627376,
+      "Re": 127281.34263458585,
+      "volume_flow_actual": 0.5016284324452023,
+      "volume_flow_std": 0.5247805139426732
+    },
+    "straightness": {
+      "skip": false,
+      "length_first_ms_to_ssu_D": 0,
+      "length_between_ms_D": null,
+      "length_after_SSU": 6,
+      "relative_roughness_Ra_D": 1.6411625533704935e-05,
+      "roughness_limit_Ra_D": 0.025,
+      "is_smooth_pipe": true
+    }
   }
 }

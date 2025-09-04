@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:52:03.031482Z",
+    "ts": "2025-09-04T07:33:54.682372Z",
     "input": "inputdata\\conical_01.json",
     "type": "conical",
     "methodic": "otHER",
@@ -16,11 +16,47 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.030 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797DBB0D0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F375FF290>",
   "result": {
-    "mass_flow": 0.0781116134253974,
-    "Re": 52345.72952518702,
-    "volume_flow_actual": 0.1084883519797186,
-    "volume_flow_std": 0.12204939597718342
+    "type": "conical",
+    "D": 0.0999978976,
+    "d": 0.029999369279999997,
+    "p1": 3200000.0,
+    "t1": 291.15,
+    "dp": 15000.0,
+    "mu": 19.0,
+    "Roc": 0.64,
+    "Ro": 0.72,
+    "k": 1.37,
+    "C": 0.7503351926086133,
+    "E": 1.0040747710110163,
+    "epsilon": 0.9980521444907964,
+    "beta": 0.3,
+    "ssu_results": {
+      "beta": 0.3,
+      "E_speed": 1.0040747710110163,
+      "straightness": null,
+      "C": 0.7503351926086133,
+      "ssu_params": {
+        "error": "Cannot cast array data from dtype('O') to dtype('float64') according to the rule 'safe'"
+      },
+      "Epsilon": 0.9980521444907964,
+      "pressure_loss": 13068.0
+    },
+    "flow": {
+      "mass_flow": 0.0781116134253974,
+      "Re": 52345.72952518702,
+      "volume_flow_actual": 0.1084883519797186,
+      "volume_flow_std": 0.12204939597718342
+    },
+    "straightness": {
+      "skip": false,
+      "length_first_ms_to_ssu_D": 12.0,
+      "length_between_ms_D": 10,
+      "length_after_SSU": null,
+      "relative_roughness_Ra_D": 2.0000420488840356e-05,
+      "roughness_limit_Ra_D": 0.01956,
+      "is_smooth_pipe": true
+    }
   }
 }

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:52:03.109475Z",
+    "ts": "2025-09-04T07:33:54.791894Z",
     "input": "inputdata\\wear_03.json",
     "type": "wear",
     "methodic": "otHER",
@@ -16,11 +16,54 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
     "[OK] D20 <- lenPackage/lenProperties/D → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797E367D0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F3F5BF210>",
   "result": {
-    "mass_flow": 0.13109759929785295,
-    "Re": 95390.04218794868,
-    "volume_flow_actual": 0.19279058720272488,
-    "volume_flow_std": 0.20168861430438914
+    "type": "wear",
+    "D": 0.0999916576,
+    "d": 0.0499958288,
+    "p1": 2000000.0,
+    "t1": 285.15,
+    "dp": 8000.0,
+    "mu": 17.5,
+    "Roc": 0.65,
+    "Ro": 0.68,
+    "k": 1.35,
+    "C": 0.6205630933304572,
+    "E": 1.0327955589886444,
+    "epsilon": 0.9989012583233176,
+    "beta": 0.5,
+    "ssu_results": {
+      "beta": 0.5,
+      "E_speed": 1.0327955589886444,
+      "straightness": null,
+      "C": 0.6205630933304572,
+      "ssu_params": {
+        "Толщина EД": "≤ 0.00500 м (0…0.05·D)",
+        "Длина цилиндрической части e": "0.00050…0.00175 м (0.005·D…0.02·(D-0.0125))",
+        "Угол наклона α": "при EД > 0.00175 м: 45° ±1°",
+        "Кромки G,H,I": "острые, без заусенцев и неровностей",
+        "Диаметр d": "параллельно оси ±0.5°, цилиндричность ±0.05%",
+        "Отбор давления": "угловой способ (п.4.1.11)",
+        "Глубина фаски b": "0.25·d ±0.0005·d при d≤125 мм; 0.25·d²/(13d-1000) ±0.002·d²/(13d-1000) при d>125 мм",
+        "Угол фаски": "45° ±5°"
+      },
+      "Epsilon": 0.9989012583233176,
+      "pressure_loss": 5920.0
+    },
+    "flow": {
+      "mass_flow": 0.13109759929785295,
+      "Re": 95390.04218794868,
+      "volume_flow_actual": 0.19279058720272488,
+      "volume_flow_std": 0.20168861430438914
+    },
+    "straightness": {
+      "skip": false,
+      "length_first_ms_to_ssu_D": 92.7,
+      "length_between_ms_D": 0,
+      "length_after_SSU": 0.6999416032000001,
+      "relative_roughness_Ra_D": 3.000250292880433e-05,
+      "roughness_limit_Ra_D": 0.004900000000000001,
+      "is_smooth_pipe": true
+    }
   }
 }

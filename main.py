@@ -116,7 +116,7 @@ def _iter_inputs(base: Path, pattern: str) -> Iterable[Path]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Запуск расчёта new_ssu")
-    ap.add_argument("--input", type=Path, default=Path("inputdata/conical_01.json"),
+    ap.add_argument("--input", type=Path, default=Path("inputdata/cone_02.json"),
                     help="входной JSON или директория с JSON-файлами")
     ap.add_argument("--output", type=Path, default=Path("outputdata/result.json"),
                     help="файл результата (для одиночного запуска)")
@@ -127,7 +127,6 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.input.is_dir():
-        # Пакетный режим: перебираем все файлы, сохраняем зеркально в outdir
         base_in: Path = args.input
         base_out: Path = args.outdir
         logger.info("Пакетный запуск: dir=%s, glob=%s → outdir=%s", base_in, args.glob, base_out)

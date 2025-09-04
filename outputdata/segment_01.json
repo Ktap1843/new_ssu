@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-03T13:52:03.078474Z",
+    "ts": "2025-09-04T07:33:54.749375Z",
     "input": "inputdata\\segment_01.json",
     "type": "segment",
     "methodic": "otHER",
@@ -16,11 +16,53 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.120 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001F797E37950>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F3F5BE390>",
   "result": {
-    "mass_flow": 0.42263660572108364,
-    "Re": 236021.47064905116,
-    "volume_flow_actual": 0.5869952857237273,
-    "volume_flow_std": 0.6603696964391932
+    "type": "segment",
+    "D": 0.11999747711999999,
+    "d": 0.0499989488,
+    "p1": 3200000.0,
+    "t1": 291.15,
+    "dp": 15000.0,
+    "mu": 19.0,
+    "Roc": 0.64,
+    "Ro": 0.72,
+    "k": 1.37,
+    "C": 0.5934167555019568,
+    "E": 1.0882065847980282,
+    "epsilon": 0.9984103703597642,
+    "beta": 0.6280047698026409,
+    "ssu_results": {
+      "beta": 0.6280047698026409,
+      "E_speed": 1.0882065847980282,
+      "straightness": null,
+      "C": 0.5934167555019568,
+      "ssu_params": {
+        "Толщина EД": "≤ 0.00600 м (0…0.05·D)",
+        "Длина цилиндрической части e": "0.00060…0.00240 м (0.005·D…0.02·D)",
+        "Угол наклона φ": "при EД > 0.00240 м: 30°…45°",
+        "Высота сегмента H": "по β: 0.04992 м (формула 9.2); по θ и D: H = D / 2·(1 - cos(θ / 2))(формула 9.3)",
+        "Ось отверстия": "параллельно оси ±0.5°",
+        "Отбор давления": "угловой способ (п.4.1.11), отверстия с противоположной стороны, отклонение ±10°",
+        "Площадь сегмента f": "f = D²/8·(θ·π/180 - sinθ) (формула 9.4)"
+      },
+      "Epsilon": 0.9984103703597642,
+      "pressure_loss": 9020.784131113902
+    },
+    "flow": {
+      "mass_flow": 0.42263660572108364,
+      "Re": 236021.47064905116,
+      "volume_flow_actual": 0.5869952857237273,
+      "volume_flow_std": 0.6603696964391932
+    },
+    "straightness": {
+      "skip": false,
+      "length_first_ms_to_ssu_D": 5.0,
+      "length_between_ms_D": 7.5,
+      "length_after_SSU": null,
+      "relative_roughness_Ra_D": 0.0002083377134254204,
+      "roughness_limit_Ra_D": 0.006433333333333333,
+      "is_smooth_pipe": true
+    }
   }
 }

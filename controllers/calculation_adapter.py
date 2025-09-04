@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional, Tuple
 
 # --- Logger (корневой, по проекту) ---
 try:
@@ -30,6 +30,91 @@ except Exception:
             def error(self, *a, **k): pass
         _log = _Dummy()
 
+
+# -------------------- Вспомогательное: расчёт прямолинейных участков --------------------
+
+def _maybe_calc_straightness(ssu_type: str, d: float, D: float, Ra_m: Optional[float], raw: Mapping[str, Any]) -> Optional[dict]:
+    """Расчёт длин прямолинейных участков через flow_straightness.straightness_calculator.
+    ВАЖНО: передаём *тёплые* диаметры `D` и `d` (после термокоррекции), а не D20/d20. Если конструктор
+    требует `beta`/`Ra` — подставляем `beta=d/D` и `Ra=Ra_m` (если задано во входных данных).
+    Флаг: lenPackage.straightness.skip (по умолчанию True — явное включение расчёта).
+    Возвращаем словарь с ключом 'skip' всегда; при skip=False добавляем расчёт.
+    """
+    try:
+        lp = (raw.get("lenPackage") or {})
+        straight = lp.get("straightness") or (lp.get("lenProperties") or {}).get("straightness") or {}
+        if not isinstance(straight, dict):
+            return {"skip": True}
+        ms_before = straight.get("ms_before", []) or []
+        ms_after = straight.get("ms_after", []) or []
+        skip = bool(straight.get("skip", True))
+    except Exception:
+        return {"skip": True}
+
+    if skip:
+        return {"skip": True}
+
+    try:
+        from flow_straightness.straightness_calculator import CalcStraightness
+        import inspect
+    except Exception as exc:
+        _log.warning("Модуль CalcStraightness недоступен: %s", exc)
+        return {"skip": True}
+
+    try:
+        # Инспекция сигнатуры конструктора и передача только поддерживаемых аргументов
+        sig = inspect.signature(CalcStraightness.__init__)
+        allowed = set(sig.parameters.keys()) - {"self"}
+        beta_val = float(d) / float(D) if D else 0.0
+        cand = {
+            "ssu_type": ssu_type.lower() if isinstance(ssu_type, str) else ssu_type,
+            "D": float(D),
+            "d": float(d),
+            "beta": beta_val,
+            "Ra": None if Ra_m is None else float(Ra_m),
+            "ms_before": ms_before,
+            "ms_after": ms_after,
+            "skip": False,
+        }
+        kwargs = {k: v for k, v in cand.items() if k in allowed and v is not None}
+        # Если конструктор требует beta/Ra, гарантируем подстановку при их наличии в allowed
+        if "beta" in allowed and "beta" not in kwargs:
+            kwargs["beta"] = beta_val
+        if "Ra" in allowed and "Ra" not in kwargs and Ra_m is not None:
+            kwargs["Ra"] = float(Ra_m)
+        cs = CalcStraightness(**kwargs)
+        res = cs.calculate()
+        _log.info("Straightness: расчёт выполнен")
+        return {"skip": False, **(res if isinstance(res, dict) else {"result": res})}
+    except Exception as exc:
+        _log.warning("Straightness: расчёт не выполнен: %s", exc)
+        return {"skip": False, "error": str(exc)}
+        ms_before = straight.get("ms_before", []) or []
+        ms_after = straight.get("ms_after", []) or []
+    except Exception:
+        return None
+
+    try:
+        from flow_straightness.straightness_calculator import CalcStraightness
+    except Exception as exc:
+        _log.warning("Модуль CalcStraightness недоступен: %s", exc)
+        return None
+
+    try:
+        cs = CalcStraightness(
+            ssu_type=ssu_type.lower() if isinstance(ssu_type, str) else ssu_type,
+            beta=float(beta),
+            D=float(D),
+            ms_before=ms_before,
+            ms_after=ms_after,
+            skip=False,
+        )
+        res = cs.calculate()
+        _log.info("Straightness: расчёт выполнен")
+        return res
+    except Exception as exc:
+        _log.warning("Straightness: расчёт не выполнен: %s", exc)
+        return None
 
 # -------------------- Точка входа --------------------
 
@@ -273,14 +358,46 @@ def run_calculation(*args: Any, **kwargs: Any):
     # Запуск полного расчёта расходов
     if hasattr(cf, "run_all") and callable(cf.run_all):
         _log.info("Вызов CalcFlow.run_all()")
-        return cf.run_all()
+        flow_res = cf.run_all()
+        # Straightness (если заданы параметры)
+        straight_res = _maybe_calc_straightness(ssu_name, d_, D_, Ra_m, raw)
+        # Компонуем общий ответ
+        result = {
+            "type": ssu_name,
+            "D": D_, "d": d_,
+            "p1": p1_, "t1": t1_,
+            "dp": dp_, "mu": mu_, "Roc": Roc_, "Ro": Ro_, "k": k_,
+            "C": getattr(cf, "C", None),
+            "E": getattr(cf, "E", None),
+            "epsilon": getattr(cf, "epsilon", None),
+            "beta": getattr(cf, "beta", None),
+            "ssu_results": ssu_results,
+            "flow": flow_res,
+            "straightness": straight_res if isinstance(straight_res, dict) else {"skip": True},
+        }
+        return result
 
     # Резервные имена (на всякий случай)
     for mname in ("run", "run_calculations", "calculate", "calc", "compute", "main", "start"):
         method = getattr(cf, mname, None)
         if callable(method):
             _log.info("Вызов CalcFlow.%s()", mname)
-            return method()
+            flow_res = method()
+            straight_res = _maybe_calc_straightness(ssu_name, d_, D_, Ra_m, raw)
+            result = {
+                "type": ssu_name,
+                "D": D_, "d": d_,
+                "p1": p1_, "t1": t1_,
+                "dp": dp_, "mu": mu_, "Roc": Roc_, "Ro": Ro_, "k": k_,
+                "C": getattr(cf, "C", None),
+                "E": getattr(cf, "E", None),
+                "epsilon": getattr(cf, "epsilon", None),
+                "beta": getattr(cf, "beta", None),
+                "ssu_results": ssu_results,
+                "flow": flow_res,
+                "straightness": straight_res if isinstance(straight_res, dict) else {"skip": True},
+            }
+            return result
 
     raise AttributeError("В CalcFlow не найден метод запуска расчёта")
 

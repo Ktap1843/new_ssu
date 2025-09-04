@@ -29,7 +29,7 @@
              ],
              "ms_after": [],
              "skip": false
-    },
-    "request": { "calc": false, "check": false }
+    }
+
   }
 }

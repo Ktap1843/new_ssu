@@ -32,7 +32,6 @@
             {"type": "smth"}
         ],
              "skip": false
-    },
-    "request": { "calc": false, "check": false }
+    }
   }
 }
