@@ -98,10 +98,10 @@ class SegmentOrifice(BaseOrifice):
         E = self.calculate_E()
         return (0.6085 - 0.03427 * beta**2 + 0.3237 * beta**4 + 0.00695 * beta**6) * (1/E)
 
-    # def delta_C(self) -> float:
-    #     """Относительная погрешность п.9.4.1"""
-    #     beta = self.calculate_beta()
-    #     return 0.6 + 1.5 * beta**4
+    def discharge_coefficient_uncertainty(self) -> float:
+        """Относительная погрешность п.9.4.1"""
+        beta = self.calculate_beta()
+        return 0.6 + 1.5 * beta**4
 
     def calculate_epsilon(self, delta_p: float, k: float) -> float:
         """Коэффициент расширения п.9.4.2"""
@@ -110,9 +110,9 @@ class SegmentOrifice(BaseOrifice):
         beta = self.calculate_beta()
         return 1 - (0.41 + 0.351 * beta**4) * delta_p / k / self.p
 
-    # def delta_epsilon(self, delta_p: float) -> float:
-    #     """Относительная погрешность п. 9.4.2"""
-    #     return 4 * (delta_p / self.p)
+    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+        """Относительная погрешность п. 9.4.2"""
+        return 4 * (delta_p / self.p)
 
     def pressure_loss(self, delta_p: float) -> float:
         """Потери давления п.9.5"""

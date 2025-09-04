@@ -1,7 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
 import math
 
-# ------------- утилиты -------------
 
 def _get(d: Optional[dict], *path, default=None):
     cur = d or {}

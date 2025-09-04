@@ -53,11 +53,11 @@ class CylindricalNozzle(BaseOrifice):
         beta = self.calculate_beta()
         return (0.80017 - 0.01801 * beta**2 + 0.7022 * beta**4 - 0.322 * beta**6) * (1 / E)
 
-    # def discharge_coefficient_uncertainty(self) -> float:
-    #     """
-    #     Относительная погрешность коэффициента истечения
-    #     """
-    #     return 1
+    def discharge_coefficient_uncertainty(self) -> float:
+        """
+        Относительная погрешность коэффициента истечения
+        """
+        return 1
 
     def calculate_epsilon(self, delta_p: float, k: float) -> float:
         """п.13.4.2"""
@@ -73,11 +73,13 @@ class CylindricalNozzle(BaseOrifice):
         term5 = (1 - beta**4) / (1 - beta**4 * phi**(2 / k))
         return math.sqrt(term1 * term2 * term3 * term5)
 
-    # def delta_epsilon(self, delta_p: float, p: float, k: float) -> float:
-    #     """
-    #     Относительная погрешность
-    #     """
-    #     todo над запрогать п 13.4.2
+    def expansion_coefficient_uncertainty(self) -> float:
+        """
+        Относительная погрешность п 13.4.2
+        """
+
+
+        return 0
 
     def pressure_loss(self, delta_p: float) -> float:
         """п.13.5"""

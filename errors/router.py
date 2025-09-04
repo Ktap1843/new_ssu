@@ -1,4 +1,3 @@
-# errors/router.py
 from __future__ import annotations
 from typing import Dict, Any, Optional
 from logger_config import get_logger
@@ -7,7 +6,7 @@ from errors.errors_handler.calculators.pressure_abs import PressureCalculator as
 from errors.errors_handler.calculators.temperature import TemperatureCalculator as TemperatureCalc
 from errors.errors_handler.calculators.density import DensityStCalculator as DensityCalc
 from errors.errors_handler.calculators.composition import CompositionCalculator as CompositionCalc
-from errors.errors_handler.standards import STANDARD_REGISTRY  # <— нужен для выбора стандарта
+from errors.errors_handler.standards import STANDARD_REGISTRY
 
 log = get_logger("ErrorRouter")
 

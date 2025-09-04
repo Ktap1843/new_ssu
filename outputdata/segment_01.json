@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T07:33:54.749375Z",
+    "ts": "2025-09-04T07:55:59.409121Z",
     "input": "inputdata\\segment_01.json",
     "type": "segment",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.120 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F3F5BE390>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001BE354DA610>",
   "result": {
     "type": "segment",
     "D": 0.11999747711999999,

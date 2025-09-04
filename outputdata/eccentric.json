@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T07:33:54.713373Z",
+    "ts": "2025-09-04T07:55:59.369119Z",
     "input": "inputdata\\eccentric.json",
     "type": "eccentric",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.220 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.520 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F3F5BD550>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001BE354D9B50>",
   "result": {
     "type": "eccentric",
     "D": 0.51998906752,

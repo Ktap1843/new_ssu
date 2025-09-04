@@ -156,7 +156,23 @@ class BaseOrifice(ABC):
         """Коэффициент расширения"""
         raise NotImplementedError
 
+    #@abstractmethod
+    def discharge_coefficient_uncertainty(self) -> float:
+        """Относительня погрешность коэффициента истечения"""
+        raise NotImplementedError
+
+    #@abstractmethod
+    def expansion_coefficient_uncertainty(self, dp_p: float, k: float | None = None) -> float:
+        """Относительня погрешность коэффициента расширения"""
+        raise NotImplementedError
+
+
     @abstractmethod
     def pressure_loss(self, delta_p: float) -> float:
         """Потери давления"""
         raise NotImplementedError
+
+
+#todo добавиьть заглушки к рассчету доп св-в + раскоментировать в соотв классах методы  + изменить адаптер для записи результатов
+#todo потом можно подклчать пакет погрешностей
+#todo затем можно формировать итоговый пакет сборки результатов

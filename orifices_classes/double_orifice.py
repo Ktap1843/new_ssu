@@ -55,11 +55,11 @@ class DoubleOrifice(BaseOrifice):
         beta = self.calculate_beta()
         return (0.6836 + 0.243 * beta**3.64) * (1 / E)
 
-    # def discharge_coefficient_uncertainty(self) -> float:
-    #     """
-    #     Относительная погрешность коэффициента истечения
-    #     """
-    #     return 0.5
+    def discharge_coefficient_uncertainty(self) -> float:
+        """
+        Относительная погрешность коэффициента истечения
+        """
+        return 0.5
 
     def calculate_epsilon(self, delta_p: float, k: float) -> float:
         """п.8.2"""
@@ -70,14 +70,16 @@ class DoubleOrifice(BaseOrifice):
             raise ValueError("Δp/p > 0.25")
         return 1 - (0.41 + 0.35 * beta**4) * ratio / k
 
-    # def expansion_coefficient_uncertainty(self, dp_p: float) -> float:
-    #     """
-    #     Относительная погрешность
-    #     """
-    #     beta = self.calculate_beta()
-    #     if beta <= 0.75: n = 2
-    #     elif beta > 0.75: n = 4
-    #     return n * dp_p
+    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+        """
+        Относительная погрешность
+        """
+        beta = self.calculate_beta()
+        if beta <= 0.75:
+            n = 2
+        elif beta > 0.75:
+            n = 4
+        return n * delta_p / self.p
 
     def pressure_loss(self, delta_p: float) -> float:
         """(8.3)"""

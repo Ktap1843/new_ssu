@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T07:33:54.669369Z",
+    "ts": "2025-09-04T07:55:59.319247Z",
     "input": "inputdata\\cone_02.json",
     "type": "cone",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.200 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.290 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F3F551E50>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001BE2F0F2350>",
   "result": {
     "type": "cone",
     "D": 0.28999053191875995,

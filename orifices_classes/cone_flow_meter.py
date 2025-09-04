@@ -8,9 +8,10 @@ class ConeFlowMeter(BaseOrifice):
     """
     Конусный преобразователь расхода
     """
-    def __init__(self, D: float, d: float, Re: float, alpha: float, **kwargs):
+    def __init__(self, D: float, d: float, Re: float, alpha: float, p: float, **kwargs):
         super().__init__(D, d, Re)
         self.alpha = alpha
+        self.p = p
         # todo = d_k(делал как d -- нужно ли поправку по температуре делать) / D
 
     def _beta_from_geometry(self):
@@ -57,11 +58,11 @@ class ConeFlowMeter(BaseOrifice):
         """
         return 0.82
 
-    # def discharge_coefficient_uncertainty(self) -> float:
-    #     """
-    #     Относительная погрешность коэффициента истечения
-    #     """
-    #     return 0.05
+    def discharge_coefficient_uncertainty(self) -> float:
+        """
+        Относительная погрешность коэффициента истечения
+        """
+        return 5
 
     def calculate_epsilon(self, delta_p: float, p: float) -> float:  # TODO тут отредактировать нужно
         """
@@ -75,15 +76,15 @@ class ConeFlowMeter(BaseOrifice):
 
         return 1 - (0.649 - 0.696 * beta**4) * otn
 
-    # def expansion_coefficient_uncertainty(self, dp_p: float) -> float:
-    #     """
-    #     Относительная погрешность
-    #     """
-    #     return 0.096 * dp_p
+    def expansion_coefficient_uncertainty(self, delta_p: float, k: float) -> float:
+        """
+        Относительная погрешность
+        """
+        return (0.096 * delta_p) / (self.p * k)
 
-    def pressure_loss(self, dp: float) -> float:
+    def pressure_loss(self, delta_p: float) -> float:
         """
         Потери давления п.15.5
         """
         beta = self.calculate_beta()
-        return (1.09 - 0.813 * beta) * dp
+        return (1.09 - 0.813 * beta) * delta_p

@@ -63,10 +63,13 @@ class QuarterCircleOrifice(BaseOrifice):
         beta = self.calculate_beta()
         return (0.73823 + 0.3309 * beta - 1.1615 * beta**2 + 1.5084 * beta**3)
 
-    # def delta_C(self) -> float:
-    #     """Относительная погрешность п.11.4.1"""
-    #     beta = self.calculate_beta()
-    #     return 2.5 if beta <= 0.316 else 2
+    def discharge_coefficient_uncertainty(self) -> float:
+        """Относительная погрешность п.11.4.1"""
+        beta = self.calculate_beta()
+        if beta <= 0.316:
+            return 2.5
+        else:
+            return 2
 
     def calculate_epsilon(self, delta_p: float, k: float) -> float:
         """Коэффициент расширения п.11.4.2"""
@@ -76,9 +79,9 @@ class QuarterCircleOrifice(BaseOrifice):
         term = (0.351 + 0.256 * beta**4 + 0.93 * beta**8)
         return 1 - term * (1 - (1 - delta_p / self.p)**(1/k))
 
-    # def delta_epsilon(self, delta_p: float, k: float) -> float:
-    #     """Относительная погрешность п.11.4.2"""
-    #     return 3.5 * (delta_p / (k * self.p))
+    def expansion_coefficient_uncertainty(self, delta_p: float, k: float) -> float:
+        """Относительная погрешность п.11.4.2"""
+        return 3.5 * (delta_p / (k * self.p))
 
     def pressure_loss(self, delta_p: float) -> float:
         """п.11.5"""

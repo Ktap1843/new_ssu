@@ -90,7 +90,7 @@ class ConicalInletOrifice(BaseOrifice):
             return checks
 
         except Exception as e:
-            logger.warning("Ошибка при проверке геометрии диафрагмы с коническим входом")
+            logger.error("Ошибка при проверке геометрии диафрагмы с коническим входом")
             return {"error": str(e)}
 
     def check_Re(self) -> bool:
@@ -102,40 +102,54 @@ class ConicalInletOrifice(BaseOrifice):
             Re_min, Re_max = 80, 2e5 * beta
 
         if not (Re_min <= self.Re <= Re_max):
-            logger.warning(f"[Validation error]{self.__class__.__name__}: Re={self.Re:.0f} вне [{Re_min:.0f}; {Re_max:.0f}]")
+            logger.error(f"[Validation error]{self.__class__.__name__}: Re={self.Re:.0f} вне [{Re_min:.0f}; {Re_max:.0f}]")
             return False
         return True
 
     def calculate_C(self) -> float:
         beta, E = self.calculate_beta(), self.calculate_E()
-        return (0.73095 + 0.2726 * beta ** 2 - 0.7138 * beta ** 4 + 5.0623 * beta ** 6) / E if self.D <= 0.1 else 0.734
+        if 0.0025 <= self.D <= 0.1:
+            return (0.73095 + 0.2726 * beta ** 2 - 0.7138 * beta ** 4 + 5.0623 * beta ** 6) / E
+        elif 0.1 < self.D <= 0.5:
+            return 0.734
 
-    # def discharge_coefficient_uncertainty(self) -> float:
-    #     """
-    #     Относительная погрешность коэффициента истечения
-    #     """ todo запрогать 6.4.1
-    #     beta = self.calculate_beta()
-    #     if beta <= 0.63: return 0.2
-    #     elif beta > 0.6: return 0.8 * beta**2 - 0.1
+    def discharge_coefficient_uncertainty(self) -> float:
+        """
+        Относительная погрешность коэффициента истечения п. 6.4.1
+        """
+        if 0.0025 <= self.D <= 0.1:
+            return 1
+        elif 0.1 < self.D <= 0.5:
+            return 2
 
-    def calculate_epsilon(self, delta_p: float, p: float) -> float:
-        x = delta_p / p
+    def calculate_epsilon(self, delta_p: float) -> float:
+        x = delta_p / self.p
         if x > 0.25:
             logger.error("Δp/p > 0.25 — расчёт ε невозможен")
             raise ValueError("Δp/p > 0.25")
         beta = self.calculate_beta()
-        if self.D <= 0.1:
+        if 0.00125 <= self.D <= 0.1:
             term = (1 - x) ** (2 / self.k)
             num = term * (self.k / (self.k - 1)) * (1 - (1 - x) ** ((self.k - 1) / self.k))
             frac = num / x * (1 - beta ** 4) / (1 - beta ** 4 * term)
             return 0.25 + 0.75 * math.sqrt(frac)
         return 1 - 0.351 * (1 - (1 - x) ** (1 / self.k))
 
-    # def delta_epsilon(self, delta_p: float, p: float, k: float) -> float:
-    #     """todo запрогать 6.4.2
-    #     Относительная погрешность
-    #     """
-    #     return 33 * (delta_p / (k * p))
+    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+        """
+        Относительная погрешность
+        """
+        x = delta_p / self.p
+        beta = self.calculate_beta()
+        if 0.1 < D <= 0.5:
+            eps = self.calculate_epsilon(delta_p)
+            return 33 * (1 - eps)
+        elif 0.00125 <= self.D <= 0.1:
+            ot_k = 2 / self.k#todo проверить формулу мб ошибка
+            return 7.5 * (1 - ((1 - x)**ot_k * (self.k / (self.k - 1))
+                               * ((1 - (1 - x)**((self.k - 1) / self.k)) / x)
+                              * ((1 - beta**4) / ((1 - beta**4) * (1 - x)**ot_k)))**0.5)
+
 
     def pressure_loss(self, delta_p: float) -> float:
         beta = self.calculate_beta()

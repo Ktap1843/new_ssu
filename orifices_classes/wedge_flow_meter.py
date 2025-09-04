@@ -6,7 +6,7 @@ from logger_config import get_logger
 logger = get_logger("WedgeFlowMeter")
 
 class WedgeFlowMeter(BaseOrifice):
-    "Клиновый преобразователь расхода"
+    """Клиновый преобразователь расхода"""
     def __init__(self, D: float, d: float, Re: float, k:float):
         super().__init__(D, d, Re)
         self.k = k
@@ -49,9 +49,9 @@ class WedgeFlowMeter(BaseOrifice):
         beta = self.calculate_beta()
         return 0.77 - 0.09 * beta
 
-    # def delta_C(self) -> float:
-    #     """Относительная погрешность п.9.4.1"""
-    #     return 4
+    def discharge_coefficient_uncertainty(self) -> float:
+        """Относительная погрешность п.9.4.1"""
+        return 4
 
     def calculate_epsilon(self, delta_p: float, p: float) -> float:
         """ε (п.14.4.2)"""
@@ -64,9 +64,9 @@ class WedgeFlowMeter(BaseOrifice):
         term3 = (1 - (1 - dp_p) ** ((self.k - 1) / self.k)) / dp_p
         return math.sqrt(term1 * term2 * term3)
 
-    # def delta_epsilon(self, delta_p: float) -> float:
-    #     """Относительная погрешность"""
-    #     return (1 - (1 - delta_p / self.p)) / 3
+    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+        """Относительная погрешность"""
+        return (1 - (1 - delta_p / self.p)) / 3
 
     def pressure_loss(self, dp: float) -> float:
         """(п.14.5)"""

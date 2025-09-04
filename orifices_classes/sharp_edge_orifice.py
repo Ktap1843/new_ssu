@@ -77,14 +77,18 @@ class SharpEdgeOrifice(BaseOrifice):
             return (1.0068 + 0.08287 / d_mm) * Cc * invE
         raise ValueError(f"Недопустимый d_mm={d_mm}")
 
-    # def discharge_coefficient_uncertainty(self) -> float:
-    #     """
-    #     Относительная погрешность коэффициента истечения
-    #     """
-    #     beta = self.calculate_beta()
-    #     if beta <= 0.6: x = 0.09
-    #     elif beta > 0.6: x = 0.25
-    #     return ((0.005/ self.d + 0.2)**2 + x * beta**2)**0.5
+    def discharge_coefficient_uncertainty(self) -> float:
+        """
+        Относительная погрешность коэффициента истечения п. 5.4.1
+        """
+        beta = self.calculate_beta()
+
+        if beta <= 0.6:
+            x = 0.09
+        elif beta > 0.6:
+            x = 0.25
+
+        return ((0.005 / self.d + 0.2)**2 + x * beta**2)**0.5
 
     def calculate_epsilon(self, delta_p: float, k: float, *args, **kwargs) -> float:
         """п.5.6"""
@@ -94,14 +98,16 @@ class SharpEdgeOrifice(BaseOrifice):
             raise ValueError("Δp/p > 0.25")
         return 1 - (0.41 + 0.35 * beta**4) * ratio / k
 
-    # def expansion_coefficient_uncertainty(self, dp_p: float) -> float:
-    #     """
-    #     Относительная погрешность
-    #     """
-    #     beta = self.calculate_beta()
-    #     if beta <= 0.75: n = 2
-    #     elif beta > 0.75: n = 4
-    #     return n * dp_p
+    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+        """
+        Относительная погрешность
+        """
+        beta = self.calculate_beta()
+        if beta <= 0.75:
+            n = 2
+        elif beta > 0.75:
+            n = 4
+        return n * delta_p / self.p
 
     def pressure_loss(self, delta_p: float, *args, **kwargs) -> float:
         """п.5.5"""

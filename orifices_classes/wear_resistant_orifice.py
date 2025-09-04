@@ -124,13 +124,15 @@ class WearResistantOrifice(BaseOrifice):
             return (1.0068 + 1.03585/d_mm) * Cc * invE
         return (0.99626 + 3.2554/d_mm - 124.627/d_mm**2) * Cc * invE
 
-    # def discharge_coefficient_uncertainty(self) -> float:
-    #     """
-    #     Относительная погрешность коэффициента истечения
-    #     """
-    #     beta = self.calculate_beta()
-    #     if beta <= 0.63: return 0.2
-    #     elif beta > 0.6: return 0.8 * beta**2 - 0.1
+    def discharge_coefficient_uncertainty(self) -> float:
+        """
+        Относительная погрешность коэффициента истечения
+        """
+        beta = self.calculate_beta()
+        if beta <= 0.63:
+            return 0.2
+        elif beta > 0.63:
+            return 0.8 * beta**2 - 0.1
 
     def calculate_epsilon(self, delta_p: float, p: float, k: float) -> float:
         """
@@ -142,11 +144,11 @@ class WearResistantOrifice(BaseOrifice):
             raise ValueError("Δp/p > 0.25")
         return 1 - (0.351 + 0.256 * beta**4 + 0.93 * beta**8) * (1 - (1 - dp_p)**(1/k))
 
-    # def delta_epsilon(self, delta_p: float, p: float, k: float) -> float:
-    #     """
-    #     Относительная погрешность
-    #     """
-    #     return 3.5 * (delta_p / (k * p))
+    def expansion_coefficient_uncertainty(self, delta_p: float, p: float, k: float) -> float:
+        """
+        Относительная погрешность
+        """
+        return 3.5 * (delta_p / (k * p))
 
     def pressure_loss(self, delta_p: float) -> float:
         beta = self.calculate_beta()

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T07:33:54.682372Z",
+    "ts": "2025-09-04T07:55:59.330246Z",
     "input": "inputdata\\conical_01.json",
     "type": "conical",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.030 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F375FF290>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001BE353BC8D0>",
   "result": {
     "type": "conical",
     "D": 0.0999978976,

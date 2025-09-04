@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T07:33:54.690368Z",
+    "ts": "2025-09-04T07:55:59.342248Z",
     "input": "inputdata\\cylindrical_01.json",
     "type": "cylindrical",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.025 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.065 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x0000027F375FEBD0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001BE2CCF4650>",
   "result": {
     "type": "cylindrical",
     "D": 0.06499457743999999,

@@ -6,7 +6,6 @@ from typing import Dict, Any, Optional
 from logger_config import get_logger
 from errors.router import ErrorRouter
 
-# для corrector'а
 from errors.errors_handler.standards import STANDARD_REGISTRY
 from errors.errors_handler.geom_sum import geometric_sum
 from errors.errors_handler.error_types  import Result
