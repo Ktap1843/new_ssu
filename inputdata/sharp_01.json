@@ -28,6 +28,14 @@
       "Ed": { "real": 1.0, "unit": "mm" },
       "alpha": 35
     },
+    "straightness": {
+      "ms_before": [
+                 {"type": "stop_valve"},
+                 {"type": "convergent_reducer"}
+             ],
+             "ms_after": [],
+             "skip": false
+    },
     "request": { "calc": false, "check": false }
   }
 }

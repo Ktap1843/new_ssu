@@ -22,6 +22,16 @@
       "D20_steel": "35l",
       "Ra": { "real": 3, "unit": "um" }
     },
+    "straightness": {
+      "ms_before": [
+             {"type": "90_degree_elbow"},
+             {"type": "tee_straight"}
+         ],
+         "ms_after": [
+             {"type": "cock"}
+         ],
+             "skip": false
+    },
     "request": { "calc": false, "check": false }
   }
 }

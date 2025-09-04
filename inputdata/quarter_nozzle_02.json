@@ -23,6 +23,12 @@
       "alpha": 45,
       "Ra": { "real": 3.2, "unit": "um" }
     },
+    "straightness": {
+      "ms_before": [{"type": "convergent_reducer"},
+                 {"type": "control_reg_valve_100"}],
+             "ms_after": [],
+             "skip": true
+    },
     "request": { "calc": false, "check": false }
   }
 }

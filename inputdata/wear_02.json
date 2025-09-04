@@ -22,6 +22,14 @@
       "D20_steel": "35l",
       "Ra": { "real": 3, "unit": "um" }
     },
+    "straightness": {
+      "ms_before": [
+                 {"type": "unknown_ms_1"},
+                 {"type": "unknown_ms_2"}
+             ],
+             "ms_after": [],
+             "skip": false
+    },
     "request": { "calc": false, "check": false }
   }
 }

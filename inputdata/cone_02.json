@@ -23,6 +23,16 @@
       "alpha": 12.0,
       "Ra": { "real": 2.0, "unit": "um" }
     },
+    "straightness": {
+      "ms_before": [
+             {"type": "cock"},
+             {"type": "tee"}
+         ],
+         "ms_after": [
+             {"type": "unknown_valve"}
+         ],
+             "skip": false
+    },
     "request": { "calc": false, "check": false }
   }
 }

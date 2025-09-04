@@ -28,6 +28,16 @@
       "Ed": { "real": 1, "unit": "mm" },
       "alpha": 35
     },
+    "straightness": {
+      "ms_before": [
+                {"type": "swirler_60"},
+                {"type": "control_damper"}
+            ],
+            "ms_after": [
+                {"type": "thermowell_003D_013D"}
+            ],
+             "skip": false
+    },
     "request": { "calc": false, "check": false }
   }
 }
