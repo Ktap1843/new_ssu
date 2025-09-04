@@ -34,26 +34,29 @@
   },
     "errorPackage": {
     "hasToCalcErrors": true,
-    "errors": {
-      "temperatureErrorProState": {
-        "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 1.0, "unit": "C" } },
-        "complError": { "errorTypeId": "AbsErr", "value": { "real": 0.5, "unit": "C" } }
-      },
-      "absPressureErrorProState": {
-        "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 0.01, "unit": "MPa" } },
-        "complError": { "errorTypeId": "AbsErr", "value": { "real": 2.0,  "unit": "kPa" } }
-      },
-      "diffPressureErrorProState": {
-        "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 300.0, "unit": "Pa" } }
-      },
-      "calcCorrectorProState": {
-        "intrError":  { "errorTypeId": "RelErr", "value": { "real": 0.8, "unit": "percent" } },
-        "complError": { "errorTypeId": "RelErr", "value": { "real": 0.6, "unit": "percent" } }
-      },
-      "flowErrorProState": {
-        "intrError":         { "errorTypeId": "RelErr", "value": { "real": 0.5, "unit": "percent" } },
-        "outSignalIntrError":{ "errorTypeId": "RelErr", "value": { "real": 0.3, "unit": "percent" } }
-      }
+    "errorPackage": {
+  "hasToCalcErrors": true,
+  "errors": {
+    "temperatureErrorProState": {
+      "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 1.0, "unit": "C" } },
+      "complError": { "errorTypeId": "AbsErr", "value": { "real": 0.5, "unit": "C" } }
+    },
+    "absPressureErrorProState": {
+      "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 0.01, "unit": "MPa" } },
+      "complError": { "errorTypeId": "AbsErr", "value": { "real": 2.0,  "unit": "kPa" } }
+    },
+    "diffPressureErrorProState": {
+      "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 300.0, "unit": "Pa" } }
+    },
+    "calcCorrectorProState": {
+      "intrError":  { "errorTypeId": "RelErr", "value": { "real": 0.8, "unit": "percent" } },
+      "complError": { "errorTypeId": "RelErr", "value": { "real": 0.6, "unit": "percent" } }
+    },
+    "flowErrorProState": {
+      "intrError":          { "errorTypeId": "RelErr", "value": { "real": 0.5, "unit": "percent" } },
+      "outSignalIntrError": { "errorTypeId": "RelErr", "value": { "real": 0.3, "unit": "percent" } }
     }
+  }
+}
   }
 }

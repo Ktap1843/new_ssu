@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T13:15:38.700993Z",
+    "ts": "2025-09-04T14:04:27.458112Z",
     "input": "inputdata\\segment_01.json",
     "type": "segment",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.120 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC705C1250>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE3CC9D0>",
   "result": {
     "type": "segment",
     "D": 0.11999747711999999,
@@ -24,7 +24,7 @@
     "p1": 3200000.0,
     "t1": 291.15,
     "dp": 15000.0,
-    "mu": 19.0,
+    "mu": 18.999999999999996,
     "Roc": 0.64,
     "Ro": 0.72,
     "k": 1.37,
@@ -51,7 +51,7 @@
     },
     "flow": {
       "mass_flow": 0.42263660572108364,
-      "Re": 236021.47064905116,
+      "Re": 236021.4706490512,
       "volume_flow_actual": 0.5869952857237273,
       "volume_flow_std": 0.6603696964391932
     },
@@ -63,6 +63,9 @@
       "relative_roughness_Ra_D": 0.0002083377134254204,
       "roughness_limit_Ra_D": 0.006433333333333333,
       "is_smooth_pipe": true
+    },
+    "errors": {
+      "skip": true
     }
   }
 }

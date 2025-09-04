@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T13:15:38.574849Z",
+    "ts": "2025-09-04T14:04:27.334360Z",
     "input": "inputdata\\cone_01.json",
     "type": "cone",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.070 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC6A1CEFD0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3B643F990>",
   "result": {
     "type": "cone",
     "D": 0.0999967351444,
@@ -24,7 +24,7 @@
     "p1": 3200000.0,
     "t1": 291.15,
     "dp": 15000.0,
-    "mu": 19.0,
+    "mu": 18.999999999999996,
     "Roc": 0.64,
     "Ro": 0.72,
     "k": 1.37,
@@ -43,7 +43,7 @@
     },
     "flow": {
       "mass_flow": 0.5599280101601046,
-      "Re": 375234.61125807,
+      "Re": 375234.61125807004,
       "volume_flow_actual": 0.7776777918890342,
       "volume_flow_std": 0.8748875158751634
     },
@@ -55,6 +55,9 @@
       "relative_roughness_Ra_D": 2.000065299243926e-05,
       "roughness_limit_Ra_D": 0.004,
       "is_smooth_pipe": true
+    },
+    "errors": {
+      "skip": true
     }
   }
 }

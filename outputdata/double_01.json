@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T13:15:38.642995Z",
+    "ts": "2025-09-04T14:04:27.405881Z",
     "input": "inputdata\\double_01.json",
     "type": "double",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.070 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC6A1CE810>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE3BE350>",
   "result": {
     "type": "double",
     "D": 0.0999978976,
@@ -24,7 +24,7 @@
     "p1": 3200000.0,
     "t1": 291.15,
     "dp": 8000.0,
-    "mu": 19.0,
+    "mu": 18.999999999999996,
     "Roc": 0.64,
     "Ro": 0.64,
     "k": 1.37,
@@ -53,7 +53,7 @@
     },
     "flow": {
       "mass_flow": 0.29177723395349353,
-      "Re": 195531.64376413703,
+      "Re": 195531.64376413706,
       "volume_flow_actual": 0.4559019280523337,
       "volume_flow_std": 0.45590192805233365
     },
@@ -65,6 +65,9 @@
       "relative_roughness_Ra_D": 0.00025000525611050447,
       "roughness_limit_Ra_D": 0.004,
       "is_smooth_pipe": true
+    },
+    "errors": {
+      "skip": true
     }
   }
 }

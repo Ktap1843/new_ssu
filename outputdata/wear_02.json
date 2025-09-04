@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T13:15:38.747995Z",
+    "ts": "2025-09-04T14:04:27.501697Z",
     "input": "inputdata\\wear_02.json",
     "type": "wear",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.150 m",
     "[OK] D20 <- lenPackage/lenProperties/D → 0.195 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC705C3F50>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE3CD350>",
   "result": {
     "type": "wear",
     "D": 0.19498373232,
@@ -64,6 +64,9 @@
       "relative_roughness_Ra_D": 1.5385898937848377e-05,
       "roughness_limit_Ra_D": 0.003930769230769231,
       "is_smooth_pipe": true
+    },
+    "errors": {
+      "skip": true
     }
   }
 }

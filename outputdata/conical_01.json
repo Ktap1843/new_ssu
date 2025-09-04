@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T13:15:38.608000Z",
+    "ts": "2025-09-04T14:04:27.377358Z",
     "input": "inputdata\\conical_01.json",
     "type": "conical",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.030 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC705C2250>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE3BEB90>",
   "result": {
     "type": "conical",
     "D": 0.0999978976,
@@ -24,7 +24,7 @@
     "p1": 3200000.0,
     "t1": 291.15,
     "dp": 15000.0,
-    "mu": 19.0,
+    "mu": 18.999999999999996,
     "Roc": 0.64,
     "Ro": 0.72,
     "k": 1.37,
@@ -45,7 +45,7 @@
     },
     "flow": {
       "mass_flow": 0.0781116134253974,
-      "Re": 52345.72952518702,
+      "Re": 52345.729525187024,
       "volume_flow_actual": 0.1084883519797186,
       "volume_flow_std": 0.12204939597718342
     },
@@ -57,6 +57,10 @@
       "relative_roughness_Ra_D": 2.0000420488840356e-05,
       "roughness_limit_Ra_D": 0.01956,
       "is_smooth_pipe": true
+    },
+    "errors": {
+      "skip": false,
+      "error": "no entrypoint (calculate_all/calculate/run/main)"
     }
   }
 }

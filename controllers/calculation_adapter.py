@@ -513,12 +513,70 @@ def run_calculation(*args: Any, **kwargs: Any):
     # --------------------------------- 4) Straightness ---------------------------------
     straight_res = _maybe_calc_straightness(ssu_name, d_, D_, Ra_m, raw)
 
-    # Компонуем общий ответ
+    # ---- 4) Расчёт погрешностей (если запрошен) ----
+    err_pkg = (raw.get("errorPackage") or {})
+    do_err = bool(err_pkg.get("hasToCalcErrors", False) or err_node)
+
+    err_node = (err_pkg.get("errors") or {})
+    errors_res = {"skip": True}
+
+    if do_err and isinstance(err_node, dict) and err_node:
+        # Контекст: всё полезное, чем может воспользоваться адаптер ошибок
+        ctx = {
+            "type": ssu_name,
+            "geometry": {"D": D_, "d": d_, "beta": getattr(cf, "beta", None)},
+            "phys": {
+                "p_abs": p1_,  # Pa
+                "T": t1_,  # K (если подавал °C < 200 — уже переведено в K)
+                "dp": dp_,  # Pa
+                "Ro": Ro_,
+                "Roc": Roc_,
+                "k": k_,
+                "mu_Pa_s": mu_,  # Па·с (как в исходных данных)
+                "mu_uPa_s": mu_for_cf,  # микропаскаль·с (что ушло в CalcFlow)
+            },
+            "flow": flow_res or {},
+            "ssu": {
+                "name": ssu_name,
+                "results": ssu_results or {},
+            },
+            # Можно передать и сырой raw, если адаптеру нравится лазить сам
+            "raw": raw,
+        }
+
+        try:
+            from errors import error_adapter as EA
+            entry = None
+            for _cand in ("calculate_all", "calculate", "run", "main"):
+                fn = getattr(EA, _cand, None)
+                if callable(fn):
+                    entry = fn
+                    break
+            # fallback: классический объектный интерфейс
+            if entry is None and hasattr(EA, "ErrorAdapter"):
+                _Cls = getattr(EA, "ErrorAdapter")
+                if hasattr(_Cls, "calculate") and callable(getattr(_Cls, "calculate")):
+                    entry = lambda errs, _ctx: _Cls().calculate(errs, _ctx)
+
+            if entry is None:
+                raise AttributeError("no entrypoint (calculate_all/calculate/run/main)")
+
+            _out = entry(err_node, ctx)
+            if isinstance(_out, dict):
+                errors_res = {"skip": False, **_out}
+            else:
+                errors_res = {"skip": False, "result": _out}
+        except Exception as exc:
+            errors_res = {"skip": False, "error": str(exc)}
+    else:
+        errors_res = {"skip": True}
+
+    # Добавим в общий ответ
     result = {
         "type": ssu_name,
         "D": D_, "d": d_,
         "p1": p1_, "t1": t1_,
-        "dp": dp_, "mu": mu_, "Roc": Roc_, "Ro": Ro_, "k": k_,
+        "dp": dp_, "mu": mu_for_cf, "Roc": Roc_, "Ro": Ro_, "k": k_,
         "C": getattr(cf, "C", None),
         "E": getattr(cf, "E", None),
         "epsilon": getattr(cf, "epsilon", None),
@@ -526,7 +584,7 @@ def run_calculation(*args: Any, **kwargs: Any):
         "ssu_results": ssu_results,
         "flow": flow_res,
         "straightness": straight_res if isinstance(straight_res, dict) else {"skip": True},
-        "errors": errors_result if isinstance(errors_result, dict) else {"skip": True},
+        "errors": errors_res,  # <-- вот он
     }
     return result
 

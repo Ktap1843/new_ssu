@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T13:15:38.677991Z",
+    "ts": "2025-09-04T14:04:27.438109Z",
     "input": "inputdata\\quarter_nozzle_02.json",
     "type": "quarter_nozzle",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.040 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.080 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC70499090>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE296050>",
   "result": {
     "type": "quarter_nozzle",
     "D": 0.07999332608,
@@ -57,6 +57,9 @@
       "volume_flow_std": 0.06014883476477945
     },
     "straightness": {
+      "skip": true
+    },
+    "errors": {
       "skip": true
     }
   }

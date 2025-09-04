@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T13:15:38.625004Z",
+    "ts": "2025-09-04T14:04:27.391876Z",
     "input": "inputdata\\cylindrical_01.json",
     "type": "cylindrical",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.025 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.065 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC704C9BD0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE3BEB90>",
   "result": {
     "type": "cylindrical",
     "D": 0.06499457743999999,
@@ -59,6 +59,9 @@
       "relative_roughness_Ra_D": 4.9234876601114806e-05,
       "roughness_limit_Ra_D": 0.0074230769230769185,
       "is_smooth_pipe": true
+    },
+    "errors": {
+      "skip": true
     }
   }
 }
