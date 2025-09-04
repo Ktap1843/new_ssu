@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T07:55:59.485135Z",
+    "ts": "2025-09-04T13:15:38.782991Z",
     "input": "inputdata\\wedge_02.json",
     "type": "wedge",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.040 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.195 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001BE354DAF90>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC705C30D0>",
   "result": {
     "type": "wedge",
     "D": 0.19498373232,

@@ -156,12 +156,12 @@ class BaseOrifice(ABC):
         """Коэффициент расширения"""
         raise NotImplementedError
 
-    #@abstractmethod
+    #@abstractmethod todo потом включить после редактивроания 2-ух су
     def discharge_coefficient_uncertainty(self) -> float:
         """Относительня погрешность коэффициента истечения"""
         raise NotImplementedError
 
-    #@abstractmethod
+    #@abstractmethod  todo потом включить после редактивроания 2-ух су
     def expansion_coefficient_uncertainty(self, dp_p: float, k: float | None = None) -> float:
         """Относительня погрешность коэффициента расширения"""
         raise NotImplementedError

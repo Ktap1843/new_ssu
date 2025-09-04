@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T07:55:59.452122Z",
+    "ts": "2025-09-04T13:15:38.747995Z",
     "input": "inputdata\\wear_02.json",
     "type": "wear",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.150 m",
     "[OK] D20 <- lenPackage/lenProperties/D → 0.195 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001BE354DB4D0>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001CC705C3F50>",
   "result": {
     "type": "wear",
     "D": 0.19498373232,
