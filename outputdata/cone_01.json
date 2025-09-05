@@ -57,7 +57,7 @@
       "is_smooth_pipe": true
     },
     "errors": {
-      "skip": true
+      "skip":
     }
   }
 }
