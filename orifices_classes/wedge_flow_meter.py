@@ -7,9 +7,10 @@ logger = get_logger("WedgeFlowMeter")
 
 class WedgeFlowMeter(BaseOrifice):
     """Клиновый преобразователь расхода"""
-    def __init__(self, D: float, d: float, Re: float, k:float):
+    def __init__(self, D: float, d: float, Re: float, k:float, delta_p:float):
         super().__init__(D, d, Re)
         self.k = k
+        self.delta_p = delta_p
 
 
     def _beta_from_geometry(self):
@@ -64,9 +65,9 @@ class WedgeFlowMeter(BaseOrifice):
         term3 = (1 - (1 - dp_p) ** ((self.k - 1) / self.k)) / dp_p
         return math.sqrt(term1 * term2 * term3)
 
-    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+    def expansion_coefficient_uncertainty(self) -> float:
         """Относительная погрешность"""
-        return (1 - (1 - delta_p / self.p)) / 3
+        return (1 - (1 - self.delta_p / self.p)) / 3
 
     def pressure_loss(self, dp: float) -> float:
         """(п.14.5)"""

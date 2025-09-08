@@ -628,6 +628,48 @@ def run_calculation(*args: Any, **kwargs: Any):
     _log.debug("Пробую CalcFlow(*positional %d args)", len(pos_args))
     cf = CF(*pos_args)
 
+    # --- Неопределённости коэффициентов из ССУ ---
+    d_Cm = None
+    d_Epsilonm = None
+
+    # d_Cm
+    try:
+        if hasattr(ssu, "discharge_coefficient_uncertainty"):
+            try:
+                # вариант без аргументов
+                d_Cm = float(ssu.discharge_coefficient_uncertainty())
+            except TypeError:
+                # если в твоих реализациях методы захотят dp/p/k
+                sig = inspect.signature(ssu.discharge_coefficient_uncertainty)
+                kwargs = {}
+                if "delta_p" in sig.parameters:
+                    kwargs["delta_p"] = dp_
+                if "p" in sig.parameters:
+                    kwargs["p"] = p1_
+                if "k" in sig.parameters and k_ is not None:
+                    kwargs["k"] = k_
+                d_Cm = float(ssu.discharge_coefficient_uncertainty(**kwargs))
+    except Exception as e:
+        _log.warning("Не удалось получить d_Cm: %s", e)
+
+    # d_Epsilonm
+    try:
+        if hasattr(ssu, "expansion_coefficient_uncertainty"):
+            try:
+                d_Epsilonm = float(ssu.expansion_coefficient_uncertainty())
+            except TypeError:
+                sig = inspect.signature(ssu.expansion_coefficient_uncertainty)
+                kwargs = {}
+                if "delta_p" in sig.parameters:
+                    kwargs["delta_p"] = dp_
+                if "p" in sig.parameters:
+                    kwargs["p"] = p1_
+                if "k" in sig.parameters and k_ is not None:
+                    kwargs["k"] = k_
+                d_Epsilonm = float(ssu.expansion_coefficient_uncertainty(**kwargs))
+    except Exception as e:
+        _log.warning("Не удалось получить d_Epsilonm: %s", e)
+
     # 1) Прокинуть коэффициенты из результатов ССУ (если есть)
     ssu_results = ssu_results or {}
 
@@ -688,6 +730,8 @@ def run_calculation(*args: Any, **kwargs: Any):
         "E": getattr(cf, "E", None),
         "epsilon": getattr(cf, "epsilon", None),
         "beta": getattr(cf, "beta", None),
+        "d_Cm": d_Cm,
+        "d_Epsilonm": d_Epsilonm,
         "ssu_results": ssu_results,
         "flow": flow_res,
         "straightness": straight_res if isinstance(straight_res, dict) else {"skip": True},
