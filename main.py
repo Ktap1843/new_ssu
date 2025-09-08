@@ -93,16 +93,7 @@ def _process_one(input_path: Path, output_path: Path) -> None:
     calc = run_calculation(prepared, parsed.values_si, data)
 
     out = {
-        "meta": {
-            "ts": datetime.utcnow().isoformat() + "Z",
-            "input": str(input_path),
-            "type": data.get("type"),
-            "methodic": (data.get("physPackage") or {}).get("physProperties", {}).get("methodic"),
-            "controller": "CalculationController",
-        },
-        "remarks": parsed.remarks,
-        "prepared": asdict(prepared) if is_dataclass(prepared) else prepared,
-        "result": calc,
+        "result": calc
     }
 
     logger.info("Запись результата: %s", output_path)

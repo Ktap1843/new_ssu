@@ -33,8 +33,6 @@
     }
   },
     "errorPackage": {
-    "hasToCalcErrors": true,
-    "errorPackage": {
   "hasToCalcErrors": true,
   "errors": {
     "temperatureErrorProState": {
@@ -57,6 +55,6 @@
       "outSignalIntrError": { "errorTypeId": "RelErr", "value": { "real": 0.3, "unit": "percent" } }
     }
   }
-}
+
   }
 }

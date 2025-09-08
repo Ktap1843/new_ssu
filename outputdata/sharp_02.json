@@ -1,22 +1,4 @@
 {
-  "meta": {
-    "ts": "2025-09-04T14:04:27.481108Z",
-    "input": "inputdata\\sharp_02.json",
-    "type": "sharp",
-    "methodic": "otHER",
-    "controller": "CalculationController"
-  },
-  "remarks": [
-    "[OK] p_abs <- physPackage/physProperties/p_abs → 2.5e+06 Pa",
-    "[OK] p_atm <- physPackage/physProperties/p_atm → 101325.00 Pa",
-    "[OK] p_st <- physPackage/physProperties/p_st → 101325 Pa",
-    "[OK] dp <- physPackage/physProperties/dp → 25000 Pa",
-    "[OK] T <- physPackage/physProperties/T → 15 C",
-    "[OK] T_st <- physPackage/physProperties/T_st → 20 C",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.020 m",
-    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.050 m"
-  ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE3CD350>",
   "result": {
     "type": "sharp",
     "D": 0.0499973825,

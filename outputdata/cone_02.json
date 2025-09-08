@@ -1,22 +1,4 @@
 {
-  "meta": {
-    "ts": "2025-09-04T14:04:27.359357Z",
-    "input": "inputdata\\cone_02.json",
-    "type": "cone",
-    "methodic": "otHER",
-    "controller": "CalculationController"
-  },
-  "remarks": [
-    "[OK] p_abs <- physPackage/physProperties/p_abs → 3.2e+06 Pa",
-    "[INFO] Поле 'p_atm' не найдено (пути: physPackage/physProperties/p_atm, physPackage/p_atm).",
-    "[INFO] Поле 'p_st' не найдено (пути: physPackage/physProperties/p_st, physPackage/p_st).",
-    "[OK] dp <- physPackage/physProperties/dp → 15000 Pa",
-    "[OK] T <- physPackage/physProperties/T → 18 C",
-    "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.200 m",
-    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.290 m"
-  ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3B643F090>",
   "result": {
     "type": "cone",
     "D": 0.28999053191875995,

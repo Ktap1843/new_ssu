@@ -1,22 +1,4 @@
 {
-  "meta": {
-    "ts": "2025-09-04T14:04:27.531702Z",
-    "input": "inputdata\\wedge_02.json",
-    "type": "wedge",
-    "methodic": "otHER",
-    "controller": "CalculationController"
-  },
-  "remarks": [
-    "[OK] p_abs <- physPackage/physProperties/p_abs → 2e+06 Pa",
-    "[INFO] Поле 'p_atm' не найдено (пути: physPackage/physProperties/p_atm, physPackage/p_atm).",
-    "[INFO] Поле 'p_st' не найдено (пути: physPackage/physProperties/p_st, physPackage/p_st).",
-    "[OK] dp <- physPackage/physProperties/dp → 8000 Pa",
-    "[OK] T <- physPackage/physProperties/T → 12 C",
-    "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.040 m",
-    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.195 m"
-  ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE3CC9D0>",
   "result": {
     "type": "wedge",
     "D": 0.19498373232,

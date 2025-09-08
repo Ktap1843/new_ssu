@@ -1,22 +1,4 @@
 {
-  "meta": {
-    "ts": "2025-09-04T14:04:27.512700Z",
-    "input": "inputdata\\wear_03.json",
-    "type": "wear",
-    "methodic": "otHER",
-    "controller": "CalculationController"
-  },
-  "remarks": [
-    "[OK] p_abs <- physPackage/physProperties/p_abs → 2e+06 Pa",
-    "[INFO] Поле 'p_atm' не найдено (пути: physPackage/physProperties/p_atm, physPackage/p_atm).",
-    "[INFO] Поле 'p_st' не найдено (пути: physPackage/physProperties/p_st, physPackage/p_st).",
-    "[OK] dp <- physPackage/physProperties/dp → 8000 Pa",
-    "[OK] T <- physPackage/physProperties/T → 12 C",
-    "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.050 m",
-    "[OK] D20 <- lenPackage/lenProperties/D → 0.100 m"
-  ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE3CD2D0>",
   "result": {
     "type": "wear",
     "D": 0.0999916576,

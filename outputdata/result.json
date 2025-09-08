@@ -1,6 +1,6 @@
 {
   "meta": {
-    "ts": "2025-09-04T14:30:20.701344Z",
+    "ts": "2025-09-08T11:21:36.890809Z",
     "input": "inputdata\\conical_01.json",
     "type": "conical",
     "methodic": "otHER",
@@ -16,7 +16,7 @@
     "[OK] d20 <- lenPackage/lenProperties/d20 → 0.030 m",
     "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
   ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000002010B2D0210>",
+  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C93CA5AC90>",
   "result": {
     "type": "conical",
     "D": 0.0999978976,
@@ -59,7 +59,85 @@
       "is_smooth_pipe": true
     },
     "errors": {
-      "skip": true
+      "early": {
+        "skip": false,
+        "early": true,
+        "details": {
+          "inputs_rel": {
+            "corrector": {
+              "rel": 0.01,
+              "percent": 1.0
+            },
+            "flow": {
+              "rel": 0.0058309518948453,
+              "percent": 0.58309518948453
+            }
+          }
+        },
+        "by_output": {
+          "mass_flow": {
+            "rel": 0.011575836902790225,
+            "percent": 1.1575836902790226
+          },
+          "volume_flow_actual": {
+            "rel": 0.011575836902790225,
+            "percent": 1.1575836902790226
+          },
+          "volume_flow_std": {
+            "rel": 0.011575836902790225,
+            "percent": 1.1575836902790226
+          }
+        },
+        "summary": {
+          "rel": 0.011575836902790225,
+          "percent": 1.1575836902790226
+        }
+      },
+      "final": {
+        "skip": false,
+        "details": {
+          "inputs_rel": {
+            "T": {
+              "rel": 0.003840061785161927,
+              "percent": 0.3840061785161927
+            },
+            "p_abs": {
+              "rel": 0.003186887195995491,
+              "percent": 0.3186887195995491
+            },
+            "dp": {
+              "rel": 0.02,
+              "percent": 2.0
+            },
+            "corrector": {
+              "rel": 0.01,
+              "percent": 1.0
+            },
+            "flow": {
+              "rel": 0.0058309518948453,
+              "percent": 0.58309518948453
+            }
+          }
+        },
+        "by_output": {
+          "mass_flow": {
+            "rel": 0.01549921227445012,
+            "percent": 1.549921227445012
+          },
+          "volume_flow_actual": {
+            "rel": 0.01549921227445012,
+            "percent": 1.549921227445012
+          },
+          "volume_flow_std": {
+            "rel": 0.01549921227445012,
+            "percent": 1.549921227445012
+          }
+        },
+        "summary": {
+          "rel": 0.01549921227445012,
+          "percent": 1.549921227445012
+        }
+      }
     }
   }
 }

@@ -1,24 +1,15 @@
-"""
-Адаптер связки блоков без изменения алгоритмов расчёта.
-Шаги выполнения:
-  0) (опционально) Ранний расчёт погрешностей (errorPackage.hasToCalcErrors == True и есть errors) —
-     отдаём весь словарь в errors.error_adapter и сохраняем результат в общий ответ.
-  1) Термокоррекция геометрии → получаем «тёплые» D,d; D20/d20 далее не тянем.
-  2) Создаём ССУ строго по raw["type"] через orifices_classes.main.create_orifice:
-     - подставляем обязательные параметры из входа (alpha/θ, p, Ra, k, Re-пусковой)
-     - update_geometry_from_temp → validate → validate_roughness → (по возможности) run_all
-  3) Инициализация CalcFlow по явной сигнатуре и запуск run_all();
-     переносим в CalcFlow коэффициенты из ССУ (C, E, epsilon, beta). Если run_all ССУ не отдал
-     коэффициенты — добираем их прямыми вызовами calculate_* из ССУ (надёжная подстраховка),
-     чтобы CalcFlow не падал с AttributeError: 'CalcFlow' has no attribute 'C'.
-  4) (опционально) Расчёт прямолинейных участков (straightness) — принимаем *тёплые* D, d,
-     подставляем beta=d/D и Ra (если в исходнике есть), ms_before/ms_after — как есть.
-"""
 from __future__ import annotations
 
 from importlib import import_module
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any, Mapping, Optional
 import inspect
+import math
+
+# --- Errors adapter (единый импорт) ---
+try:
+    from errors import error_adapter as EA
+except Exception:
+    EA = None
 
 # --- Логгер проекта ---
 try:
@@ -102,11 +93,7 @@ def _coerce_mu_si(val_from_values: Any, val_from_raw_node: Any) -> Optional[floa
 # -------------------- Straightness: расчёт длин прямых участков --------------------
 
 def _maybe_calc_straightness(ssu_type: str, d: float, D: float, Ra_m: Optional[float], raw: Mapping[str, Any]) -> dict:
-    """Расчёт через flow_straightness.straightness_calculator (если включено).
-    Передаём *тёплые* D,d и (если требует конструктор) beta=d/D и Ra.
-    Флаг включения: lenPackage.straightness.skip (по умолчанию True — пропустить).
-    Возвращаем словарь с ключом 'skip'.
-    """
+    """Расчёт через flow_straightness.straightness_calculator (если включено)."""
     try:
         lp = (raw.get("lenPackage") or {})
         straight = lp.get("straightness") or (lp.get("lenProperties") or {}).get("straightness") or {}
@@ -155,55 +142,228 @@ def _maybe_calc_straightness(ssu_type: str, d: float, D: float, Ra_m: Optional[f
         return {"skip": False, "error": str(exc)}
 
 
-# -------------------- Errors: ранний расчёт погрешностей --------------------
+# -------------------- Погрешности (единый блок до создания ССУ) --------------------
 
-def _maybe_calc_errors_early(raw: Mapping[str, Any], values_si: Mapping[str, Any], warm_D: Optional[float], warm_d: Optional[float]) -> dict:
-    """Если raw.errorPackage.hasToCalcErrors == True и есть errors —
-    гоняем весь словарь в errors.error_adapter и возвращаем {'skip':bool, 'result'| 'error':...}.
-    Контекст прокидываем минимально полезный (D,d,T,p_abs,dp и т.д.).
+def _calc_errors_simple(raw: Mapping[str, Any], v: Mapping[str, Any]) -> dict:
     """
+    Считает погрешности ДО создания ССУ, используя errors.error_adapter (если он вернёт),
+    а недостающие T/p/dp/corrector — добивает самостоятельно из errorPackage.
+    Итог всегда один блок: {skip, inputs_rel{T,p,dp,corrector}, summary}.
+    """
+    import math
+
+    # ---- helpers ----
+    def _val(x):
+        return x.get("real") if isinstance(x, dict) and "real" in x else x
+
+    def _to_pa(x) -> Optional[float]:
+        if x is None:
+            return None
+        if isinstance(x, (int, float)):
+            return float(x)
+        if isinstance(x, dict):
+            real = _val(x)
+            unit = str(x.get("unit") or "").lower()
+            if real is None:
+                return None
+            if "mpa" in unit:
+                return float(real) * 1e6
+            if "kpa" in unit:
+                return float(real) * 1e3
+            # pa / пусто
+            return float(real)
+        return None
+
+    def _to_kelvin(x) -> Optional[float]:
+        if x is None:
+            return None
+        if isinstance(x, (int, float)):
+            xv = float(x)
+            return xv + 273.15 if xv < 200 else xv
+        if isinstance(x, dict):
+            real = _val(x)
+            unit = str(x.get("unit") or "").lower()
+            if real is None:
+                return None
+            rv = float(real)
+            if "c" in unit:
+                return rv + 273.15
+            return rv  # считаем уже K
+        return None
+
+    def _rel_from_err_node(node: dict, base: float, kind: str) -> Optional[float]:
+        """
+        node = {intrError?, complError?}, each ~ {"errorTypeId": "AbsErr|RelErr", "value": {"real":..,"unit":..}}
+        kind: "temp"|"pressure"|"dp"|"corrector"
+        """
+        if not isinstance(node, dict) or base is None or base == 0:
+            if kind == "corrector":
+                base = 1.0  # для рел. процентов база не нужна
+            else:
+                return None
+        parts = []
+        for key in ("intrError", "complError", "outSignalIntrError"):
+            e = node.get(key)
+            if not isinstance(e, dict):
+                continue
+            et = str(e.get("errorTypeId") or "").lower()
+            val = e.get("value")
+            if isinstance(val, dict):
+                real = _val(val)
+                unit = str(val.get("unit") or "").lower()
+            else:
+                real = val
+                unit = ""
+            if real is None:
+                continue
+
+            if et.startswith("rel"):
+                r = float(real) / 100.0 if "percent" in unit else float(real)
+            else:
+                # AbsErr → Rel через деление на базовую величину (в СИ)
+                absv = float(real)
+                if kind in ("pressure", "dp"):
+                    # привести к Па
+                    if "mpa" in unit:
+                        absv *= 1e6
+                    elif "kpa" in unit:
+                        absv *= 1e3
+                    # pa|пусто — как есть
+                elif kind == "temp":
+                    # 1°C по разности = 1 K
+                    # если unit не указан — считаем уже K
+                    pass
+                # corrector сюда почти не попадёт (обычно rel), но оставим общий случай
+                r = absv / float(base) if base else None
+            if r is not None:
+                parts.append(float(r))
+
+        if not parts:
+            return None
+        return math.sqrt(sum(p * p for p in parts))
+
+    # ---- достаём исходные узлы ----
     epkg = (raw.get("errorPackage") or {})
-    has_flag = bool(epkg.get("hasToCalcErrors", False))
-    errors_dict = epkg.get("errors") if isinstance(epkg.get("errors"), dict) else None
-    if not (has_flag and errors_dict):
-        _log.info("Errors: пропуск (флаг отсутствует/ложь либо нет errors)")
+    inner = (epkg.get("errorPackage") or {})
+    has_flag = bool(epkg.get("hasToCalcErrors", False) or inner.get("hasToCalcErrors", False))
+    err_node = epkg.get("errors") or inner.get("errors") or {}
+
+    if not (has_flag and isinstance(err_node, dict) and err_node):
         return {"skip": True}
 
-    _log.info("Errors: запускаем расчёт погрешностей (ранний этап)")
-
-    # Подготовим контекст — можно расширить по мере необходимости
     phys = (raw.get("physPackage") or {}).get("physProperties", {})
-    ctx = {
-        "D": warm_D,
-        "d": warm_d,
-        "T": _strip_unit_node(phys.get("T")),
-        "p_abs": _strip_unit_node(phys.get("p_abs")),
-        "dp": _strip_unit_node(phys.get("dp")),
-        "Roc": _strip_unit_node(phys.get("Roc")),
-        "Ro": _strip_unit_node(phys.get("Ro")),
-        "k": _strip_unit_node(phys.get("k")),
-        "mu": phys.get("mu"),  # единицы разберёт при необходимости расчётчик погрешностей
+
+    # нормализованные величины в СИ
+    T_K   = _to_kelvin( phys.get("T") if phys.get("T") is not None else v.get("T") )
+    p_pa  = _to_pa(    phys.get("p_abs") if phys.get("p_abs") is not None else v.get("p") )
+    dp_pa = _to_pa(    phys.get("dp") if phys.get("dp") is not None else v.get("dp") )
+
+    # ---- сначала пробуем существующий адаптер, но кормим его уже нормализованными значениями ----
+    selected = {}
+    adapter_ok = False
+    try:
+        from errors import error_adapter as _EA  # реальный модуль
+        entry = None
+        for name in ("calculate_all", "calculate", "run", "main"):
+            fn = getattr(_EA, name, None)
+            if callable(fn):
+                entry = fn
+                break
+        if entry is None and hasattr(_EA, "ErrorAdapter"):
+            Cls = getattr(_EA, "ErrorAdapter")
+            if hasattr(Cls, "calculate") and callable(Cls.calculate):
+                entry = lambda errs, c: Cls().calculate(errs, c)
+
+        if entry:
+            ctx = {
+                "type": str(raw.get("type") or "").lower(),
+                "geometry": {
+                    "D": float(v["D"]),
+                    "d": float(v["d"]),
+                    "beta": float(v["d"]) / float(v["D"]) if v.get("D") else None
+                },
+                "T": T_K,
+                "p_abs": p_pa,
+                "dp": dp_pa,
+                "Ro": _val(phys.get("Ro")),
+                "Roc": _val(phys.get("Roc")),
+                "k": _val(phys.get("k")),
+                "mu": phys.get("mu"),
+                "raw": raw,
+            }
+            out = entry(err_node, ctx) if getattr(entry, "__code__", None) and entry.__code__.co_argcount >= 2 else entry(err_node)
+            if isinstance(out, dict):
+                src = out.get("details", {}).get("inputs_rel") or out.get("inputs_rel") or {}
+                if isinstance(src, dict):
+                    # вытащим нужные 4
+                    # T
+                    for key in ("T", "t", "temperature"):
+                        if key in src and isinstance(src[key], dict):
+                            selected["T"] = src[key]; break
+                    # p (из p_abs)
+                    for key in ("p_abs", "p", "pressure"):
+                        if key in src and isinstance(src[key], dict):
+                            selected["p"] = src[key]; break
+                    # dp
+                    for key in ("dp", "delta_p", "dP", "Δp"):
+                        if key in src and isinstance(src[key], dict):
+                            selected["dp"] = src[key]; break
+                    # corrector / IVK
+                    for key in ("corrector", "ivk", "IVK", "corrector_IVK"):
+                        if key in src and isinstance(src[key], dict):
+                            selected["corrector"] = src[key]; break
+                    adapter_ok = bool(selected)
+    except Exception as exc:
+        _log.warning("errors.error_adapter вызов не удался: %s", exc)
+        adapter_ok = False
+
+    # ---- добиваем недостающее из errorPackage (фоллбек) ----
+    # temperature
+    if "T" not in selected and "temperatureErrorProState" in err_node and T_K is not None:
+        r = _rel_from_err_node(err_node["temperatureErrorProState"], T_K, "temp")
+        if r is not None:
+            selected["T"] = {"rel": r, "percent": r * 100.0}
+    # abs pressure
+    if "p" not in selected and "absPressureErrorProState" in err_node and p_pa is not None and p_pa != 0:
+        r = _rel_from_err_node(err_node["absPressureErrorProState"], p_pa, "pressure")
+        if r is not None:
+            selected["p"] = {"rel": r, "percent": r * 100.0}
+    # dp
+    if "dp" not in selected and "diffPressureErrorProState" in err_node and dp_pa is not None and dp_pa != 0:
+        r = _rel_from_err_node(err_node["diffPressureErrorProState"], dp_pa, "dp")
+        if r is not None:
+            selected["dp"] = {"rel": r, "percent": r * 100.0}
+    # corrector / IVK — обычно относительные проценты
+    if "corrector" not in selected:
+        node = err_node.get("calcCorrectorProState") or err_node.get("ivkProState")
+        if isinstance(node, dict):
+            r = _rel_from_err_node(node, 1.0, "corrector")
+            if r is not None:
+                selected["corrector"] = {"rel": r, "percent": r * 100.0}
+
+    # если совсем пусто — просто пропустим (ничего не получилось посчитать)
+    if not selected:
+        return {"skip": True}
+
+    # сводная (квадратура)
+    rel2 = 0.0
+    for item in selected.values():
+        try:
+            rel2 += float(item.get("rel", 0.0)) ** 2
+        except Exception:
+            pass
+    rel_total = math.sqrt(rel2) if rel2 > 0 else 0.0
+
+    return {
+        "skip": False,
+        "inputs_rel": selected,
+        "summary": {"rel": rel_total, "percent": rel_total * 100.0},
     }
 
-    try:
-        err_mod = import_module("errors.error_adapter")
-    except Exception as exc:
-        _log.warning("Errors: модуль errors.error_adapter не найден: %s", exc)
-        return {"skip": False, "error": f"module import failed: {exc}"}
 
-    # Ищем наиболее вероятные точки входа
-    for entry in ("calculate_all", "calculate", "run", "main"):
-        fn = getattr(err_mod, entry, None)
-        if callable(fn):
-            try:
-                res = fn(errors_dict, ctx) if fn.__code__.co_argcount >= 2 else fn(errors_dict)
-                return {"skip": False, "result": res}
-            except Exception as exc:
-                _log.warning("Errors: вызов %s() завершился ошибкой: %s", entry, exc)
-                return {"skip": False, "error": str(exc)}
-
-    _log.warning("Errors: в errors.error_adapter не найден подходящий входной метод")
-    return {"skip": False, "error": "no entrypoint (calculate_all/calculate/run/main)"}
+    # except Exception as exc:
+    #     _log.warning("Errors (simple) общий сбой: %s", exc)
+    #     return {"skip": False, "error": str(exc)}
 
 
 # -------------------- Добор коэффициентов из ССУ, если ssu.run_all() их не вернул --------------------
@@ -254,8 +414,9 @@ def _ensure_cf_coeffs_from_ssu(cf: Any, ssu: Any, dp: Optional[float], p1: Optio
 # -------------------- Точка входа --------------------
 
 def run_calculation(*args: Any, **kwargs: Any):
-    """run_calculation(prepared, values_si, raw)
-    Шаги: Errors → термокоррекция → создание ССУ → методы ССУ → запуск CalcFlow → Straightness.
+    """
+    run_calculation(prepared, values_si, raw)
+    Шаги: термокоррекция → погрешности (T,p,dp,corrector) → создание ССУ → ССУ.run_all → CalcFlow → Straightness.
     Возвращает общий словарь результатов.
     """
     if len(args) < 2:
@@ -264,12 +425,6 @@ def run_calculation(*args: Any, **kwargs: Any):
     prepared = args[0]
     values: Mapping[str, Any] = args[1] or {}
     raw: Mapping[str, Any] = args[2] if len(args) >= 3 else {}
-
-    # --------------------------------- 0) Errors (ранний этап) ---------------------------------
-    # Пока не знаем тёплые D, d — но попробуем вытащить черновые (или подставим позже при термокоррекции)
-    warm_D_early = values.get("D") or values.get("D20")
-    warm_d_early = values.get("d") or values.get("d20")
-    errors_result = _maybe_calc_errors_early(raw, values, warm_D_early, warm_d_early)
 
     # --------------------------------- 1) Термокоррекция ---------------------------------
     v = dict(values)
@@ -340,6 +495,9 @@ def run_calculation(*args: Any, **kwargs: Any):
     v["D"], v["d"] = float(D), float(d)
     v.pop("D20", None); v.pop("d20", None)
 
+    # ---------- 1.5) Погрешности (один блок) ----------
+    errors_res = _calc_errors_simple(raw, v)
+
     # --------------------------------- 2) Создание ССУ ---------------------------------
     try:
         ssu_name = str(raw.get("type", "")).strip().lower()
@@ -380,10 +538,10 @@ def run_calculation(*args: Any, **kwargs: Any):
     _log.info("create_orifice(name=%s, kwargs=%s)", ssu_name, sorted([k for k in kwargs_ssu.keys() if k not in ("rho","mu","kappa","is_gas")]))
     ssu = create_orifice(ssu_name, **kwargs_ssu)
 
-    # Гарантируем наличие давления в объекте (для calculate_epsilon)
+    # Гарантировать наличие давления в объекте (для calculate_epsilon)
     try:
         if "p" in v and hasattr(ssu, "p"):
-            ssu.p = float(v["p"])  # важно для Double/Eccentric/Wedge и др.
+            ssu.p = float(v["p"])
     except Exception:
         pass
 
@@ -450,15 +608,15 @@ def run_calculation(*args: Any, **kwargs: Any):
     t1_ = float(t_) + 273.15 if t_ is not None and float(t_) < 200 else float(t_)
     dp_ = float(v.get("dp", _get_phys(raw, "dp")))
 
-    # μ: вход в SI (Pa·s) → для CalcFlow нужно в μPa·s
+    # μ: вход в SI (Pa·с) → для CalcFlow нужно в μPa·с
     mu_si = _coerce_mu_si(
         v.get("mu"),
         (raw.get("physPackage") or {}).get("physProperties", {}).get("mu")
     )
     if mu_si is None:
         mu_si = 0.0
-    mu_for_cf = float(mu_si) * 1e6  # Pa·s → μPa·s
-    _log.info("Viscosity: %.6g Pa·s → %.6g μPa·s (для CalcFlow)", mu_si, mu_for_cf)
+    mu_for_cf = float(mu_si) * 1e6  # Pa·s → μPa·с
+    _log.info("Viscosity: %.6g Pa·с → %.6g μPa·с (для CalcFlow)", mu_si, mu_for_cf)
 
     Roc_ = float(v.get("Roc", _get_phys(raw, "Roc"))) if (
                 v.get("Roc") is not None or _get_phys(raw, "Roc") is not None) else 0.0
@@ -494,6 +652,13 @@ def run_calculation(*args: Any, **kwargs: Any):
     # 2) Гарантированный добор из самого ssu (если чего-то не хватает)
     _ensure_cf_coeffs_from_ssu(cf, ssu, dp_, p1_, k_)
 
+    # 3) Жёсткий фоллбек beta
+    if getattr(cf, "beta", None) is None and D_:
+        try:
+            cf.beta = float(d_) / float(D_)
+        except Exception:
+            pass
+
     # Запуск полного расчёта расходов
     flow_res = None
     if hasattr(cf, "run_all") and callable(cf.run_all):
@@ -510,68 +675,10 @@ def run_calculation(*args: Any, **kwargs: Any):
         if flow_res is None:
             raise AttributeError("В CalcFlow не найден метод запуска расчёта")
 
-    # --------------------------------- 4) Straightness ---------------------------------
+    # --------------------------------- Straightness ---------------------------------
     straight_res = _maybe_calc_straightness(ssu_name, d_, D_, Ra_m, raw)
 
-    # ---- 4) Расчёт погрешностей (если запрошен) ----
-    err_pkg = (raw.get("errorPackage") or {})
-    do_err = bool(err_pkg.get("hasToCalcErrors", False) or err_node)
-
-    err_node = (err_pkg.get("errors") or {})
-    errors_res = {"skip": True}
-
-    if do_err and isinstance(err_node, dict) and err_node:
-        # Контекст: всё полезное, чем может воспользоваться адаптер ошибок
-        ctx = {
-            "type": ssu_name,
-            "geometry": {"D": D_, "d": d_, "beta": getattr(cf, "beta", None)},
-            "phys": {
-                "p_abs": p1_,  # Pa
-                "T": t1_,  # K (если подавал °C < 200 — уже переведено в K)
-                "dp": dp_,  # Pa
-                "Ro": Ro_,
-                "Roc": Roc_,
-                "k": k_,
-                "mu_Pa_s": mu_,  # Па·с (как в исходных данных)
-                "mu_uPa_s": mu_for_cf,  # микропаскаль·с (что ушло в CalcFlow)
-            },
-            "flow": flow_res or {},
-            "ssu": {
-                "name": ssu_name,
-                "results": ssu_results or {},
-            },
-            # Можно передать и сырой raw, если адаптеру нравится лазить сам
-            "raw": raw,
-        }
-
-        try:
-            from errors import error_adapter as EA
-            entry = None
-            for _cand in ("calculate_all", "calculate", "run", "main"):
-                fn = getattr(EA, _cand, None)
-                if callable(fn):
-                    entry = fn
-                    break
-            # fallback: классический объектный интерфейс
-            if entry is None and hasattr(EA, "ErrorAdapter"):
-                _Cls = getattr(EA, "ErrorAdapter")
-                if hasattr(_Cls, "calculate") and callable(getattr(_Cls, "calculate")):
-                    entry = lambda errs, _ctx: _Cls().calculate(errs, _ctx)
-
-            if entry is None:
-                raise AttributeError("no entrypoint (calculate_all/calculate/run/main)")
-
-            _out = entry(err_node, ctx)
-            if isinstance(_out, dict):
-                errors_res = {"skip": False, **_out}
-            else:
-                errors_res = {"skip": False, "result": _out}
-        except Exception as exc:
-            errors_res = {"skip": False, "error": str(exc)}
-    else:
-        errors_res = {"skip": True}
-
-    # Добавим в общий ответ
+    # Итоговый словарь
     result = {
         "type": ssu_name,
         "D": D_, "d": d_,
@@ -584,7 +691,7 @@ def run_calculation(*args: Any, **kwargs: Any):
         "ssu_results": ssu_results,
         "flow": flow_res,
         "straightness": straight_res if isinstance(straight_res, dict) else {"skip": True},
-        "errors": errors_res,  # <-- вот он
+        "errors": errors_res,   # <-- единый блок с T, p, dp, corrector
     }
     return result
 

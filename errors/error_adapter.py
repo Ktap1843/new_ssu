@@ -1,203 +1,289 @@
-# file: errors/error_adapter.py
+# errors/error_adapter.py
 from __future__ import annotations
 
+from typing import Any, Dict, Mapping, Optional, Tuple
 import math
-from typing import Any, Dict, Iterable, Optional, Tuple
-
-from logger_config import get_logger
-
-log = get_logger("ErrorsAdapter")
-
-# --- Unit converters -------------------------------------------------------
-# Приводим к долям/СИ, чтобы дальше не думать про единицы
-_P_TO_SI = {
-    "percent": 0.01,  # 1% → 0.01
-}
-
-_ABS_TO_SI = {
-    # Temperature
-    "C": 1.0,  # |ΔT| одинаково в K и °C
-    "K": 1.0,
-    # Pressure
-    "Pa": 1.0,
-    "kPa": 1_000.0,
-    "MPa": 1_000_000.0,
-    "mm_Hg": 133.322,  # ГОСТ ≈ 133.322 Па
-}
 
 
-def _rss(values: Iterable[float]) -> float:
-    s = 0.0
-    for v in values:
-        s += float(v) ** 2
-    return math.sqrt(s)
+# -------------------------- Вспомогательные конвертеры --------------------------
+
+def _to_float(x: Any) -> Optional[float]:
+    try:
+        if x is None:
+            return None
+        if isinstance(x, (int, float)):
+            return float(x)
+        if isinstance(x, dict) and "real" in x:
+            return float(x["real"])
+        return float(x)
+    except Exception:
+        return None
 
 
-def _norm_err_node(node: Optional[Dict[str, Any]]) -> Optional[Tuple[str, float]]:
-    """{errorTypeId, value:{real, unit}} → ("rel"|"abs", value_SI_or_fraction).
-    Возвращает None, если данных нет.
+def _unit_pressure_to_pa(value: float, unit: Optional[str]) -> float:
+    u = (unit or "").strip().lower()
+    if not u or u in ("pa",):
+        return value
+    if u in ("kpa",):
+        return value * 1e3
+    if u in ("mpa",):
+        return value * 1e6
+    if u in ("bar",):
+        return value * 1e5
+    if u in ("atm", "at", "ata"):
+        return value * 101325.0
+    # неизвестную единицу трактуем как Па
+    return value
+
+
+def _unit_temp_to_k(value: float, unit: Optional[str]) -> float:
+    u = (unit or "").strip().lower()
+    if not u:
+        # если нет явной единицы – применим простую эвристику:
+        # "большие" значения считаем K, "комнатные" — °C
+        return value if value >= 200.0 else value + 273.15
+    if u in ("k", "kelvin", "kelvins"):
+        return value
+    if u in ("c", "°c", "degc", "celsius"):
+        return value + 273.15
+    return value  # по умолчанию считаем K
+
+
+def _to_rel_fraction(err_node: Mapping[str, Any],
+                     base_value: Optional[float],
+                     base_unit: Optional[str] = None,
+                     quantity: str = "") -> float:
     """
-    if not node:
-        return None
-    v = (node.get("value") or {})
-    if "real" not in v:
-        return None
-    real = float(v["real"])
-    unit = (v.get("unit") or "").strip()
-    etype = (node.get("errorTypeId") or "").strip()
+    Превращает описание ошибки в относительную долю (0.01 = 1%).
+    err_node: {"errorTypeId": "AbsErr|RelErr", "value": {"real": .., "unit": ".."}}
+    base_value: значение измеряемой величины в её базовых единицах (для AbsErr).
+    base_unit: подсказка по единицам base_value (для температур/давлений, если err_node без unit).
+    quantity: "pressure"|"temperature"|... — влияет на конверсии единиц.
+    """
+    if not isinstance(err_node, Mapping):
+        return 0.0
 
-    if etype == "RelErr":
-        mul = _P_TO_SI.get(unit)
-        if mul is None:
-            raise ValueError(f"Неизвестная единица относительной погрешности: {unit}")
-        return ("rel", real * mul)
+    etype = str(err_node.get("errorTypeId") or "").strip().lower()
+    val = err_node.get("value")
 
-    if etype == "AbsErr":
-        mul = _ABS_TO_SI.get(unit)
-        if mul is None:
-            raise ValueError(f"Неизвестная единица абсолютной погрешности: {unit}")
-        return ("abs", real * mul)
+    # --- относительная ошибка в процентах ---
+    if etype in ("relerr", "rel", "relative"):
+        # ожидаем unit ~ "percent"
+        real = _to_float(val)
+        if real is None and isinstance(val, Mapping):
+            real = _to_float(val.get("real"))
+        if real is None:
+            return 0.0
+        return float(real) / 100.0
 
-    raise ValueError(f"Неизвестный тип погрешности: {etype}")
-
-
-def _collect_errors(pro_state: Optional[Dict[str, Any]]) -> Dict[str, float]:
-    """Собираем intr/compl/converter*/outSignal* по RSS. Возвращаем {rel?, abs?}."""
-    if not pro_state:
-        return {}
-
-    keys = (
-        "intrError",
-        "complError",
-        "converter1IntrError",
-        "converter1ComplError",
-        "converter2IntrError",
-        "converter2ComplError",
-        "outSignalIntrError",
-        "outSignalComplError",
-    )
-
-    rel: list[float] = []
-    abs_: list[float] = []
-
-    for k in keys:
-        pair = _norm_err_node(pro_state.get(k))
-        if not pair:
-            continue
-        kind, val = pair
-        if kind == "rel":
-            rel.append(val)
+    # --- абсолютная ошибка ---
+    if etype in ("abserr", "abs", "absolute"):
+        if base_value in (None, 0.0):
+            return 0.0
+        # извлечём значение и юнит
+        if isinstance(val, Mapping):
+            real = _to_float(val.get("real"))
+            unit = val.get("unit")
         else:
-            abs_.append(val)
+            real = _to_float(val)
+            unit = base_unit
 
-    out: Dict[str, float] = {}
-    if rel:
-        out["rel"] = _rss(rel)
-    if abs_:
-        out["abs"] = _rss(abs_)
-    return out
+        if real is None:
+            return 0.0
+
+        # конвертируем абсолют в базовые единицы измеряемой величины
+        abs_base = float(real)
+        q = quantity.strip().lower()
+        if q == "pressure":
+            abs_base = _unit_pressure_to_pa(abs_base, unit)
+        elif q == "temperature":
+            # абсолютная погрешность температуры переводится в К
+            # (±1°C == ±1K)
+            abs_base = abs_base  # 1°C = 1K для приращений
+        # else: прочие — оставляем как есть
+
+        return abs(abs_base) / abs(base_value)
+
+    return 0.0
 
 
-# --- Public API ------------------------------------------------------------
+def _combine_rss(values) -> float:
+    return math.sqrt(sum((float(v) ** 2 for v in values if v is not None)))
 
-def compute_errors(
-    errors_dict: Dict[str, Any],
-    values_si: Dict[str, float] | None = None,
-    ssu_results: Dict[str, Any] | None = None,
-    flow_results: Dict[str, Any] | None = None,
-) -> Dict[str, Any]:
-    """Главная точка входа для расчёта погрешностей.
 
-    ВНИМАНИЕ: по договорённости сейчас учитываем ТОЛЬКО абсолютное давление.
-    Узлы izbPressureErrorProState и atmPressureErrorProState игнорируются.
+# -------------------------- Основная логика --------------------------
 
-    Возвращает словарь:
-    {
-      "delta_T": <K|None>,
-      "delta_p": <Pa|None>,        # ТОЛЬКО из absPressureErrorProState
-      "delta_dp": <Pa|None>,       # из diffPressureErrorProState, если задано
-      "delta_corrector": <frac|None>,
-      "flow_rel": <frac|None>,
-      "details": {...}             # раскладка по узлам
-    }
+def _extract_base_phys(ctx: Mapping[str, Any]) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     """
-    details: Dict[str, Any] = {}
+    Возвращает (p_abs [Pa], T [K], dp [Pa]) из ctx["phys"].
+    ctx["phys"]["T"] может быть в К (предпочтительно) или в °C — определим эвристикой.
+    """
+    phys = (ctx or {}).get("phys") or {}
 
-    # temperature
-    t_state = errors_dict.get("temperatureErrorProState")
-    t_errs = _collect_errors(t_state)
-    delta_T = t_errs.get("abs")
-    details["temperature"] = {"combined": t_errs, "raw": t_state}
+    p_abs = _to_float(phys.get("p_abs"))
+    dp = _to_float(phys.get("dp"))
+    T_in = _to_float(phys.get("T"))
 
-    # absolute pressure (единственный источник для delta_p)
-    p_abs_state = errors_dict.get("absPressureErrorProState")
-    p_abs_errs = _collect_errors(p_abs_state)
-    delta_p = p_abs_errs.get("abs")  # только Pa; никаких fallback'ов
-    details["p_abs"] = {"combined": p_abs_errs, "raw": p_abs_state}
+    # Температуру приведём к Кельвинам
+    T = None
+    if T_in is not None:
+        # Если в ctx лежит уже К — оставим; если нет — поправим
+        # Heвысокие значения трактуем как °C
+        T = T_in if T_in >= 200.0 else (T_in + 273.15)
 
-    # differential pressure (optional)
-    dp_state = errors_dict.get("diffPressureErrorProState")
-    dp_errs = _collect_errors(dp_state)
-    delta_dp = dp_errs.get("abs")
-    details["dp"] = {"combined": dp_errs, "raw": dp_state}
+    return p_abs, T, dp
 
-    # corrector (relative)
-    corr_state = errors_dict.get("calcCorrectorProState")
-    corr_errs = _collect_errors(corr_state)
-    delta_corrector = corr_errs.get("rel")
-    details["corrector"] = {"combined": corr_errs, "raw": corr_state}
 
-    # flowmeter (relative)
-    flow_state = errors_dict.get("flowErrorProState")
-    flow_errs = _collect_errors(flow_state)
-    flow_rel = flow_errs.get("rel")
-    details["flow"] = {"combined": flow_errs, "raw": flow_state}
+def _gather_rel_inputs(errors_cfg: Mapping[str, Any],
+                       p_abs: Optional[float],
+                       T: Optional[float],
+                       dp: Optional[float]) -> Dict[str, float]:
+    """
+    Преобразует структуру из input.errorPackage.errors в относительные вклады (фракции).
+    Возвращает словарь с ключами: "dp","p_abs","T","corrector","flow","out_signal" (что нашлось).
+    """
+    rel: Dict[str, float] = {}
+
+    # ---- Температура ----
+    t_node = errors_cfg.get("temperatureErrorProState") or {}
+    t_intr = t_node.get("intrError")
+    t_compl = t_node.get("complError")
+    t_rel = _combine_rss([
+        _to_rel_fraction(t_intr, base_value=T, base_unit="K", quantity="temperature"),
+        _to_rel_fraction(t_compl, base_value=T, base_unit="K", quantity="temperature"),
+    ])
+    if t_rel > 0.0:
+        rel["T"] = t_rel
+
+    # ---- Абсолютное давление ----
+    p_node = errors_cfg.get("absPressureErrorProState") or {}
+    p_intr = p_node.get("intrError")
+    p_compl = p_node.get("complError")
+    p_rel = _combine_rss([
+        _to_rel_fraction(p_intr, base_value=p_abs, base_unit="Pa", quantity="pressure"),
+        _to_rel_fraction(p_compl, base_value=p_abs, base_unit="Pa", quantity="pressure"),
+    ])
+    if p_rel > 0.0:
+        rel["p_abs"] = p_rel
+
+    # ---- Перепад давления ----
+    dp_node = errors_cfg.get("diffPressureErrorProState") or {}
+    dp_intr = dp_node.get("intrError")
+    dp_compl = dp_node.get("complError")
+    dp_rel = _combine_rss([
+        _to_rel_fraction(dp_intr, base_value=dp, base_unit="Pa", quantity="pressure"),
+        _to_rel_fraction(dp_compl, base_value=dp, base_unit="Pa", quantity="pressure"),
+    ])
+    if dp_rel > 0.0:
+        rel["dp"] = dp_rel
+
+    # ---- Корректор/внешняя электроника (как относительные) ----
+    corr_node = errors_cfg.get("calcCorrectorProState") or {}
+    corr_intr = corr_node.get("intrError")
+    corr_compl = corr_node.get("complError")
+    corr_rel = _combine_rss([
+        _to_rel_fraction(corr_intr, base_value=None),
+        _to_rel_fraction(corr_compl, base_value=None),
+    ])
+    if corr_rel > 0.0:
+        rel["corrector"] = corr_rel
+
+    # ---- Итоговой блок расхода/выходного сигнала (как относительные) ----
+    flow_node = errors_cfg.get("flowErrorProState") or {}
+    flow_intr = flow_node.get("intrError")
+    flow_out = flow_node.get("outSignalIntrError")
+    flow_rel = _combine_rss([
+        _to_rel_fraction(flow_intr, base_value=None),
+        _to_rel_fraction(flow_out, base_value=None),
+    ])
+    if flow_rel > 0.0:
+        rel["flow"] = flow_rel
+
+    return rel
+
+
+def _map_to_outputs(rel_inputs: Mapping[str, float]) -> Dict[str, Dict[str, float]]:
+    """
+    Перераспределяет вклады по выходным величинам.
+    Для dP, p_abs, T используется коэффициент 0.5 (классическая зависимость через корень).
+    Прочие относительные вклады (corrector/flow) идут с коэф. 1.0.
+    """
+    k_dp = 0.5
+    k_pT = 0.5
+
+    dp = rel_inputs.get("dp", 0.0)
+    p_abs = rel_inputs.get("p_abs", 0.0)
+    T = rel_inputs.get("T", 0.0)
+    corr = rel_inputs.get("corrector", 0.0)
+    flow = rel_inputs.get("flow", 0.0)
+
+    def rss_for(*terms) -> float:
+        return _combine_rss(terms)
+
+    # Для трёх целевых величин применим одинаковую модель влияний:
+    # Qm ∝ sqrt(Δp) * sqrt(ρ)  ~→ 0.5*σ_dp + 0.5*σ_ρ;  ρ ~ p/T → 0.5*(σ_p + σ_T)
+    # Qv ∝ sqrt(Δp/ρ)         ~→ 0.5*σ_dp + 0.5*σ_ρ  (знак роли не играет в RSS)
+    # Qstd считаем так же, если нет отдельных ошибок p_st/T_st.
+    mass = rss_for(k_dp * dp, k_pT * p_abs, k_pT * T, corr, flow)
+    vol_act = rss_for(k_dp * dp, k_pT * p_abs, k_pT * T, corr, flow)
+    vol_std = rss_for(k_dp * dp, k_pT * p_abs, k_pT * T, corr, flow)
 
     return {
-        "delta_T": delta_T,
-        "delta_p": delta_p,
-        "delta_dp": delta_dp,
-        "delta_corrector": delta_corrector,
-        "flow_rel": flow_rel,
-        "details": details,
+        "mass_flow": {"rel": mass, "percent": mass * 100.0},
+        "volume_flow_actual": {"rel": vol_act, "percent": vol_act * 100.0},
+        "volume_flow_std": {"rel": vol_std, "percent": vol_std * 100.0},
     }
 
 
-def compute_errors_safe(errors_dict: Dict[str, Any], **ctx: Any) -> Dict[str, Any]:
-    """Не роняет пайплайн: лог и пустой ответ при ошибке."""
+def calculate_all(errors: Mapping[str, Any],
+                  ctx: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Главная точка входа.
+    errors — поддерево из input.errorPackage.errors
+    ctx — то, что отдаёт CalculationAdapter (геометрия/физика/результаты); используем физику.
+    Возвращает словарь, готовый к включению в result["errors"].
+    """
     try:
-        return compute_errors(errors_dict, **ctx)
-    except Exception as e:
-        log.warning("Ошибка расчёта погрешностей: %s", e)
-        return {
-            "delta_T": None,
-            "delta_p": None,
-            "delta_dp": None,
-            "delta_corrector": None,
-            "flow_rel": None,
-            "details": {"error": str(e)},
+        if not isinstance(errors, Mapping) or not errors:
+            return {"skip": True, "reason": "empty errors config"}
+
+        p_abs, T, dp = _extract_base_phys(ctx or {})
+
+        rel_inputs = _gather_rel_inputs(errors, p_abs, T, dp)
+        outputs = _map_to_outputs(rel_inputs)
+
+        # Детализируем «использованные» исходники (чтобы было видно, что распознано)
+        details = {
+            "inputs_rel": {k: {"rel": v, "percent": v * 100.0} for k, v in rel_inputs.items()},
         }
 
+        # Итог: можно ещё сложить «общую» сводку по одному из выходов (напр., mass_flow)
+        summary_rel = outputs["mass_flow"]["rel"]
 
-# file: controllers/calculation_adapter.py  (integration fragment)
-# add near imports:
-# from errors.error_adapter import compute_errors_safe
+        return {
+            "skip": False,
+            "details": details,
+            "by_output": outputs,
+            "summary": {"rel": summary_rel, "percent": summary_rel * 100.0},
+        }
+    except Exception as exc:
+        return {"skip": False, "error": f"{exc}"}
 
-# inside run_calculation(...), после расчётов SSU/flow/straightness:
-#
-#     errors_block = None
-#     err_pkg = (raw.get("errorPackage") or {})
-#     if err_pkg.get("hasToCalcErrors") and err_pkg.get("errors"):
-#         errors_block = compute_errors_safe(
-#             err_pkg["errors"],
-#             values_si=values_si,
-#             ssu_results=ssu_results,
-#             flow_results=flow_result,
-#         )
-#
-#     return {
-#         "ssu_results": ssu_results,
-#         "flow_results": flow_result,
-#         "straightness": straightness_result,
-#         "errors": errors_block,
-#     }
+
+# Дополнительные алиасы, чтобы адаптер легко находил «вход»
+def calculate(errors: Mapping[str, Any], ctx: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    return calculate_all(errors, ctx)
+
+
+def run(errors: Mapping[str, Any], ctx: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    return calculate_all(errors, ctx)
+
+
+def main(errors: Mapping[str, Any], ctx: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    return calculate_all(errors, ctx)
+
+
+class ErrorAdapter:
+    """Объектный интерфейс на случай, если поиск функции не сработает."""
+    def calculate(self, errors: Mapping[str, Any], ctx: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+        return calculate_all(errors, ctx)

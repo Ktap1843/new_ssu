@@ -1,22 +1,4 @@
 {
-  "meta": {
-    "ts": "2025-09-04T14:04:27.438109Z",
-    "input": "inputdata\\quarter_nozzle_02.json",
-    "type": "quarter_nozzle",
-    "methodic": "otHER",
-    "controller": "CalculationController"
-  },
-  "remarks": [
-    "[OK] p_abs <- physPackage/physProperties/p_abs → 5e+06 Pa",
-    "[INFO] Поле 'p_atm' не найдено (пути: physPackage/physProperties/p_atm, physPackage/p_atm).",
-    "[INFO] Поле 'p_st' не найдено (пути: physPackage/physProperties/p_st, physPackage/p_st).",
-    "[OK] dp <- physPackage/physProperties/dp → 1000 Pa",
-    "[OK] T <- physPackage/physProperties/T → 12 C",
-    "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.040 m",
-    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.080 m"
-  ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C3BE296050>",
   "result": {
     "type": "quarter_nozzle",
     "D": 0.07999332608,
