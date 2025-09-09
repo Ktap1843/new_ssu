@@ -55,8 +55,8 @@ def create_orifice(name: str | OrificeType, **kwargs):
         raise ValueError(f"Валидация геометрии ССУ '{name.value}' не пройдена")
     return inst
 
-def run_orifice(orifice, delta_p: float, **kwargs) -> dict:
-    out = orifice.run_all(delta_p, **kwargs)
+def run_orifice(orifice, dp: float, **kwargs) -> dict:
+    out = orifice.run_all(dp, **kwargs)
     if not orifice.check_Re():
         raise ValueError(f"Re для {orifice.__class__.__name__} вне допустимого диапазона")
     return out

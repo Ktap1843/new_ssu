@@ -7,10 +7,10 @@ logger = get_logger("WedgeFlowMeter")
 
 class WedgeFlowMeter(BaseOrifice):
     """Клиновый преобразователь расхода"""
-    def __init__(self, D: float, d: float, Re: float, k: float, delta_p: float, p: float):
+    def __init__(self, D: float, d: float, Re: float, k: float, dp: float, p: float):
         super().__init__(D, d, Re)
         self.k = k
-        self.delta_p = delta_p
+        self.dp = dp
         self.p = p
 
 
@@ -57,7 +57,7 @@ class WedgeFlowMeter(BaseOrifice):
 
     def calculate_epsilon(self) -> float:
         """ε (п.14.4.2)"""
-        dp_p = self.delta_p / self.p
+        dp_p = self.dp / self.p
         if dp_p > 0.25:
             raise ValueError("dp/p > 0.25")
         beta = self.calculate_beta()
@@ -68,9 +68,9 @@ class WedgeFlowMeter(BaseOrifice):
 
     def expansion_coefficient_uncertainty(self) -> float:
         """Относительная погрешность"""
-        return (1 - (1 - self.delta_p / self.p)) / 3
+        return (1 - (1 - self.dp / self.p)) / 3
 
     def pressure_loss(self) -> float:
         """(п.14.5)"""
         beta = self.calculate_beta()
-        return (1.09 - 0.79 * beta) * self.delta_p
+        return (1.09 - 0.79 * beta) * self.dp

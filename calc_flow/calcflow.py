@@ -6,14 +6,14 @@ from orifices_classes.base_orifice import BaseOrifice
 logger = logging.getLogger(__name__)
 
 class CalcFlow:
-    def __init__(self, d: float, D: float, p1: float, t1: float, delta_p: float, mu: float,
+    def __init__(self, d: float, D: float, p1: float, t1: float, dp: float, mu: float,
                  Roc: float, Ro: float, k: float, orifice: BaseOrifice,
                  Z: float = 1.0, R: float = 8.314, T_std: float = 293.15, p_std: float = 101325):
         self.d = d
         self.D = D
         self.p1 = p1
         self.t1 = t1
-        self.delta_p = delta_p
+        self.dp = dp
         self.mu = mu
         self.Roc = Roc
         self.Ro = Ro
@@ -46,7 +46,7 @@ class CalcFlow:
     def calc_mass_flow(self):
         """п. 5.2.2"""
         A = (math.pi * self.D ** 2) / 4
-        self.G = self.beta**2 * self.C * self.E * self.epsilon * A * math.sqrt(2 * self.Ro * self.delta_p)
+        self.G = self.beta**2 * self.C * self.E * self.epsilon * A * math.sqrt(2 * self.Ro * self.dp)
         logger.debug(f"Массовый расход G: {self.G * 3600:.5f} кг/ч")
         return self.G #* 3600  # кг/ч
 
@@ -67,7 +67,7 @@ class CalcFlow:
         if self.Ro is None:
             logger.warning("Плотность в рабочих условиях (Ro) не задана. q_actual = 0")
             return 0
-        self.q_actual = self.beta**2 * self.C * self.E * self.epsilon * A * math.sqrt(2 * self.delta_p / self.Ro)
+        self.q_actual = self.beta**2 * self.C * self.E * self.epsilon * A * math.sqrt(2 * self.dp / self.Ro)
         logger.debug(f"Актуальный объёмный расход q_actual: {self.q_actual:.5f} м³/с")
         return self.q_actual
 

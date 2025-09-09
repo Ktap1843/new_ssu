@@ -8,11 +8,11 @@ class SegmentOrifice(BaseOrifice):
     """
     Сегментная диафрагма
     """
-    def __init__(self, D: float, d: float, Re: float, p: float, delta_p: float, k: float):
+    def __init__(self, D: float, d: float, Re: float, p: float, dp: float, k: float):
         super().__init__(D, d, Re)
         self.d = d  #считаю H, как d т.к. запрашиваем из одного окна на форме
         self.p = p
-        self.delta_p = delta_p
+        self.dp = dp
         self.k = k
 
 
@@ -107,16 +107,16 @@ class SegmentOrifice(BaseOrifice):
 
     def calculate_epsilon(self) -> float:
         """Коэффициент расширения п.9.4.2"""
-        if self.delta_p / self.p > 0.25:
+        if self.dp / self.p > 0.25:
             raise ValueError("Δp/p > 0.25")
         beta = self.calculate_beta()
-        return 1 - (0.41 + 0.351 * beta**4) * self.delta_p / self.k / self.p
+        return 1 - (0.41 + 0.351 * beta**4) * self.dp / self.k / self.p
 
     def expansion_coefficient_uncertainty(self) -> float:
         """Относительная погрешность п. 9.4.2"""
-        return 4 * (self.delta_p / self.p)
+        return 4 * (self.dp / self.p)
 
     def pressure_loss(self) -> float:
         """Потери давления п.9.5"""
         beta = self.calculate_beta()
-        return (0.98 - 0.96*beta**2) * self.delta_p
+        return (0.98 - 0.96*beta**2) * self.dp

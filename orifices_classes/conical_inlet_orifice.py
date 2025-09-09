@@ -122,8 +122,8 @@ class ConicalInletOrifice(BaseOrifice):
         elif 0.1 < self.D <= 0.5:
             return 2
 
-    def calculate_epsilon(self, delta_p: float) -> float:
-        x = delta_p / self.p
+    def calculate_epsilon(self, dp: float) -> float:
+        x = dp / self.p
         if x > 0.25:
             logger.error("Δp/p > 0.25 — расчёт ε невозможен")
             raise ValueError("Δp/p > 0.25")
@@ -135,14 +135,14 @@ class ConicalInletOrifice(BaseOrifice):
             return 0.25 + 0.75 * math.sqrt(frac)
         return 1 - 0.351 * (1 - (1 - x) ** (1 / self.k))
 
-    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+    def expansion_coefficient_uncertainty(self, dp: float) -> float:
         """
         Относительная погрешность
         """
-        x = delta_p / self.p
+        x = dp / self.p
         beta = self.calculate_beta()
         if 0.1 < D <= 0.5:
-            eps = self.calculate_epsilon(delta_p)
+            eps = self.calculate_epsilon(dp)
             return 33 * (1 - eps)
         elif 0.00125 <= self.D <= 0.1:
             ot_k = 2 / self.k#todo проверить формулу мб ошибка
@@ -151,6 +151,6 @@ class ConicalInletOrifice(BaseOrifice):
                               * ((1 - beta**4) / ((1 - beta**4) * (1 - x)**ot_k)))**0.5)
 
 
-    def pressure_loss(self, delta_p: float) -> float:
+    def pressure_loss(self, dp: float) -> float:
         beta = self.calculate_beta()
-        return (0.99 - 1.32 * beta ** 2) * delta_p
+        return (0.99 - 1.32 * beta ** 2) * dp

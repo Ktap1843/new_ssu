@@ -36,7 +36,7 @@ class CompositionCalculator:
         # Параметры 10.28/10.29
         delta_rho_f: float = 0.08,
         theta_rho_T: float = -1.67e-3, delta_T: float = 0.20,
-        theta_rho_p: float =  1.655e-2, delta_p: float = 0.15,
+        theta_rho_p: float =  1.655e-2, dp: float = 0.15,
         # ВНИМАНИЕ: decimals=None — никаких округлений в примере фин. состава
         decimals: Optional[int] = None,
         fix_sum_to: Optional[str] = None,
@@ -58,7 +58,7 @@ class CompositionCalculator:
             methane_name=methane_name,
             delta_rho_f=delta_rho_f,
             theta_rho_T=theta_rho_T, delta_T=delta_T,
-            theta_rho_p=theta_rho_p, delta_p=delta_p,
+            theta_rho_p=theta_rho_p, dp=dp,
             decimals=decimals,            # ← по умолчанию None, т.е. без округлений
             fix_sum_to=fix_sum_to,
             deltas_override_pp=deltas_override_pp,

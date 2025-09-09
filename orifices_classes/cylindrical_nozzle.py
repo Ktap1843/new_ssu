@@ -9,10 +9,10 @@ class CylindricalNozzle(BaseOrifice):
     """
     Цилиндрическое сопло
     """
-    def __init__(self, D: float, d: float, Re: float, p: float, delta_p: float, k: float, **kwargs):
+    def __init__(self, D: float, d: float, Re: float, p: float, dp: float, k: float, **kwargs):
         super().__init__(D, d, Re)
         self.k = k
-        self.delta_p = delta_p
+        self.dp = dp
         self.p = p
 
 
@@ -65,7 +65,7 @@ class CylindricalNozzle(BaseOrifice):
 
     def calculate_epsilon(self) -> float:
         """п.13.4.2"""
-        ratio = self.delta_p / self.p
+        ratio = self.dp / self.p
         if ratio > 0.25:
             logger.error("Δp/p > 0.25 — расчёт ε невозможен")
             raise ValueError("Δp/p > 0.25")
@@ -86,4 +86,4 @@ class CylindricalNozzle(BaseOrifice):
     def pressure_loss(self) -> float:
         """п.13.5"""
         beta = self.calculate_beta()
-        return (1 - 1.47 * beta**2 + 0.65 * beta**4) * self.delta_p
+        return (1 - 1.47 * beta**2 + 0.65 * beta**4) * self.dp

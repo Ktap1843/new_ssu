@@ -134,9 +134,9 @@ for title, kind, p in cases:
 
 print('=== (10.22) ===')
 
-def formula_10_22(delta_eps0, s_inv, delta_dp, delta_p, delta_kappa):
+def formula_10_22(delta_eps0, s_inv, delta_dp, dp, delta_kappa):
     k = s_inv - 1.0
-    return (delta_eps0**2 + (k**2) * (delta_dp**2 + delta_p**2 + delta_kappa**2))**0.5
+    return (delta_eps0**2 + (k**2) * (delta_dp**2 + dp**2 + delta_kappa**2))**0.5
 
 # 5 прогонов
 cases = [

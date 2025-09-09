@@ -106,7 +106,7 @@ class BaseOrifice(ABC):
             raise ValueError(f"Неверное β={beta}: подкоренное выражение ≤0")
         return 1.0 / math.sqrt(denom)
 
-    def run_all(self, delta_p: float, **kwargs) -> dict:
+    def run_all(self, dp: float, **kwargs) -> dict:
         result = {
             "beta": self.calculate_beta(),
             "E_speed": self.calculate_E(),
@@ -130,13 +130,13 @@ class BaseOrifice(ABC):
         for name, param in sig_eps.parameters.items():
             if name == "self":
                 continue
-            if name == "delta_p":
-                args_eps[name] = delta_p
+            if name == "dp":
+                args_eps[name] = dp
             elif name in kwargs:
                 args_eps[name] = kwargs[name]
         result["Epsilon"] = self.calculate_epsilon(**args_eps)
 
-        result["pressure_loss"] = self.pressure_loss(delta_p)
+        result["pressure_loss"] = self.pressure_loss(dp)
 
         logger.info(f"{self.__class__.__name__}: Успешный расчёт всех параметров")
         return result

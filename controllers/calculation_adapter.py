@@ -305,7 +305,7 @@ def _calc_errors_simple(raw: Mapping[str, Any], v: Mapping[str, Any]) -> dict:
                         if key in src and isinstance(src[key], dict):
                             selected["p"] = src[key]; break
                     # dp
-                    for key in ("dp", "delta_p", "dP", "Δp"):
+                    for key in ("dp", "dp", "dP", "Δp"):
                         if key in src and isinstance(src[key], dict):
                             selected["dp"] = src[key]; break
                     # corrector / IVK
@@ -395,13 +395,13 @@ def _ensure_cf_coeffs_from_ssu(cf: Any, ssu: Any, dp: Optional[float], p1: Optio
         except Exception as e:
             _log.warning("C из SSU не получен: %s", e)
 
-    # epsilon — сигнатуры разные: (delta_p, k) или (delta_p, p)
+    # epsilon — сигнатуры разные: (dp, k) или (dp, p)
     if getattr(cf, "epsilon", None) is None:
         try:
             sig = inspect.signature(ssu.calculate_epsilon)
             kwargs = {}
-            if "delta_p" in sig.parameters and dp is not None:
-                kwargs["delta_p"] = dp
+            if "dp" in sig.parameters and dp is not None:
+                kwargs["dp"] = dp
             if "k" in sig.parameters and k is not None:
                 kwargs["k"] = k
             if "p" in sig.parameters and p1 is not None:
@@ -582,11 +582,11 @@ def run_calculation(*args: Any, **kwargs: Any):
     ssu_results: Optional[dict] = None
     try:
         if hasattr(ssu, "run_all"):
-            delta_p = v.get("dp", _get_phys(raw, "dp"))
+            dp = v.get("dp", _get_phys(raw, "dp"))
             p_in = v.get("p1", v.get("p_abs", _get_phys(raw, "p_abs")))
             k_val = v.get("k")
             ssu_results = ssu.run_all(
-                delta_p=delta_p,
+                dp=dp,
                 p=p_in,
                 k=k_val,
                 Ra=float(Ra_m) if Ra_m is not None else None,
@@ -642,8 +642,8 @@ def run_calculation(*args: Any, **kwargs: Any):
                 # если в твоих реализациях методы захотят dp/p/k
                 sig = inspect.signature(ssu.discharge_coefficient_uncertainty)
                 kwargs = {}
-                if "delta_p" in sig.parameters:
-                    kwargs["delta_p"] = dp_
+                if "dp" in sig.parameters:
+                    kwargs["dp"] = dp_
                 if "p" in sig.parameters:
                     kwargs["p"] = p1_
                 if "k" in sig.parameters and k_ is not None:
@@ -660,8 +660,8 @@ def run_calculation(*args: Any, **kwargs: Any):
             except TypeError:
                 sig = inspect.signature(ssu.expansion_coefficient_uncertainty)
                 kwargs = {}
-                if "delta_p" in sig.parameters:
-                    kwargs["delta_p"] = dp_
+                if "dp" in sig.parameters:
+                    kwargs["dp"] = dp_
                 if "p" in sig.parameters:
                     kwargs["p"] = p1_
                 if "k" in sig.parameters and k_ is not None:

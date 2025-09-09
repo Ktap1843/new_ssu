@@ -92,7 +92,7 @@ class CalculationController:
 
     # 5) Полный расчёт параметров ССУ
     self.ssu_res = self.orifice.run_all(
-        delta_p=self.params.dp,
+        dp=self.params.dp,
         p=self.ep["p"],
         k=self.pp.get("k"),
         Ra=(Ra_um / 1000.0) if Ra_um is not None else None,

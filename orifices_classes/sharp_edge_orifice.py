@@ -12,7 +12,7 @@ class SharpEdgeOrifice(BaseOrifice):
     def __init__(self, D: float, d: float, Re: float, p: float):
         super().__init__(D, d, Re)
         self.p = p
-        self.delta_p = delta_p
+        self.dp = dp
         self.k = k
 
     def _beta_from_geometry(self):
@@ -95,7 +95,7 @@ class SharpEdgeOrifice(BaseOrifice):
     def calculate_epsilon(self) -> float:
         """п.5.6"""
         beta = self.calculate_beta()
-        ratio = self.delta_p / self.p
+        ratio = self.dp / self.p
         if ratio > 0.25:
             raise ValueError("Δp/p > 0.25")
         return 1 - (0.41 + 0.35 * beta**4) * ratio / self.k
@@ -109,9 +109,9 @@ class SharpEdgeOrifice(BaseOrifice):
             n = 2
         elif beta > 0.75:
             n = 4
-        return n * self.delta_p / self.p
+        return n * self.dp / self.p
 
     def pressure_loss(self) -> float:
         """п.5.5"""
         beta = self.calculate_beta()
-        return (0.98 - 0.96 * beta**2) * self.delta_p
+        return (0.98 - 0.96 * beta**2) * self.dp

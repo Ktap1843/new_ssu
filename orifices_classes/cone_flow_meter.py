@@ -64,27 +64,27 @@ class ConeFlowMeter(BaseOrifice):
         """
         return 5
 
-    def calculate_epsilon(self, delta_p: float, p: float) -> float:  # TODO тут отредактировать нужно
+    def calculate_epsilon(self, dp: float, p: float) -> float:  # TODO тут отредактировать нужно
         """
         Коэффициент расширения п.15.4.2
         """
         beta = self.calculate_beta()
-        otn = delta_p / p
+        otn = dp / p
         if otn > 0.25:
             logger.error(f"dp/p = {otn:.2f} > 0.25 — недопустимо")
             raise ValueError("dp/p > 0.25")
 
         return 1 - (0.649 - 0.696 * beta**4) * otn
 
-    def expansion_coefficient_uncertainty(self, delta_p: float, k: float) -> float:
+    def expansion_coefficient_uncertainty(self, dp: float, k: float) -> float:
         """
         Относительная погрешность
         """
-        return (0.096 * delta_p) / (self.p * k)
+        return (0.096 * dp) / (self.p * k)
 
-    def pressure_loss(self, delta_p: float) -> float:
+    def pressure_loss(self, dp: float) -> float:
         """
         Потери давления п.15.5
         """
         beta = self.calculate_beta()
-        return (1.09 - 0.813 * beta) * delta_p
+        return (1.09 - 0.813 * beta) * dp

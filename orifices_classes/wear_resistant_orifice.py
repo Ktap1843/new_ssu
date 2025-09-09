@@ -4,10 +4,10 @@ class WearResistantOrifice(BaseOrifice):
     """
     Износоустойчивая диафрагма
     """
-    def __init__(self, D: float, d: float, Re: float, p: float, delta_p: float, k: float):
+    def __init__(self, D: float, d: float, Re: float, p: float, dp: float, k: float):
         super().__init__(D, d, Re)
         self.p = p
-        self.delta_p = delta_p
+        self.dp = dp
         self.k = k
 
 
@@ -141,7 +141,7 @@ class WearResistantOrifice(BaseOrifice):
         """
         п.7.4.2
         """
-        dp_p = self.delta_p / self.p
+        dp_p = self.dp / self.p
         beta = self.calculate_beta()
         if dp_p > 0.25:
             raise ValueError("Δp/p > 0.25")
@@ -151,8 +151,8 @@ class WearResistantOrifice(BaseOrifice):
         """
         Относительная погрешность
         """
-        return 3.5 * (self.delta_p / (self.k * self.p))
+        return 3.5 * (self.dp / (self.k * self.p))
 
     def pressure_loss(self) -> float:
         beta = self.calculate_beta()
-        return (0.98 - 0.96*beta**2) * self.delta_p
+        return (0.98 - 0.96*beta**2) * self.dp

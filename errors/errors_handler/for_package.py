@@ -182,20 +182,20 @@ def normalize_composition_methane_by_difference(fracs: List[float], i: int, delt
 # ========= Формулы 10.28–10.31 =========
 def formula_10_28(delta_rho_f: float,
                   theta_rho_T: float, delta_T: float,
-                  theta_rho_p: float, delta_p: float) -> float:
+                  theta_rho_p: float, dp: float) -> float:
     return sqrt(
         (delta_rho_f ** 2) +
         (theta_rho_T ** 2) * (delta_T ** 2) +
-        (theta_rho_p ** 2) * (delta_p ** 2)
+        (theta_rho_p ** 2) * (dp ** 2)
     )
 
 def formula_10_29(delta_rho_f: float,
                   theta_rho_T: float, delta_T: float,
-                  theta_rho_p: float, delta_p: float,
+                  theta_rho_p: float, dp: float,
                   theta_rho_x: Sequence[float], delta_x: Sequence[float]) -> float:
     if len(theta_rho_x) != len(delta_x):
         raise CalcThetaError("Длины theta_rho_x и delta_x должны совпадать.")
-    s = (delta_rho_f ** 2) + (theta_rho_T ** 2) * (delta_T ** 2) + (theta_rho_p ** 2) * (delta_p ** 2)
+    s = (delta_rho_f ** 2) + (theta_rho_T ** 2) * (delta_T ** 2) + (theta_rho_p ** 2) * (dp ** 2)
     for th, dx in zip(theta_rho_x, delta_x):
         s += (th ** 2) * (dx ** 2)
     return sqrt(s)
@@ -326,7 +326,7 @@ def run_method10(
     # параметры 10.28/10.29:
     delta_rho_f: float = 0.08,
     theta_rho_T: float = -1.67e-3, delta_T: float = 0.20,
-    theta_rho_p: float =  1.655e-2, delta_p: float = 0.15,
+    theta_rho_p: float =  1.655e-2, dp: float = 0.15,
 
     # округление итогового состава (пример): None = без округлений
     decimals: Optional[int] = None,
@@ -379,8 +379,8 @@ def run_method10(
         theta_vec.append(th)
 
     # --- (10.29) и (10.28) ---
-    delta_rho_1029 = formula_10_29(delta_rho_f, theta_rho_T, delta_T, theta_rho_p, delta_p, theta_vec, dx_frac)
-    delta_rho_1028 = formula_10_28(delta_rho_f, theta_rho_T, delta_T, theta_rho_p, delta_p)
+    delta_rho_1029 = formula_10_29(delta_rho_f, theta_rho_T, delta_T, theta_rho_p, dp, theta_vec, dx_frac)
+    delta_rho_1028 = formula_10_28(delta_rho_f, theta_rho_T, delta_T, theta_rho_p, dp)
 
     # --- Пример "конечного" состава для проверки инвариантов ---
     final_comp = composition.copy()
