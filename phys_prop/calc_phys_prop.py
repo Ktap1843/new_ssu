@@ -80,3 +80,94 @@ class CalcFizika:
                 self.logger.warning(f"'{key}'== None")
 
         return result
+
+
+#todo сделать проверку phys_props -- если requestlist = []. то прост беерем значения из переменных!
+#todo +++++++
+#todo добавить сразу состав и весь список из физ пакаге + поменять input params
+
+
+ducis = {"physPackage": {
+            "physProperties": {
+                "K": None,
+                "T": {
+                    "real": 20,
+                    "unit": "C"
+                },
+                "T_phi": None,
+                "T_st": {
+                    "real": 20,
+                    "unit": "C"
+                },
+                "W": None,
+                "Z": None,
+                "Z_st": None,
+                "composition": {
+                    "CarbonDioxide": 0.25,
+                    "Ethane": 5.7,
+                    "Methane": 90,
+                    "Nitrogen": 0.25,
+                    "Propane": 3,
+                    "iButane": 0.2,
+                    "iPentane": 0.2,
+                    "nButane": 0.2,
+                    "nPentane": 0.2
+                },
+                "containsHydrogenSulfide": None,
+                "error_K": None,
+                "error_W": None,
+                "error_Z": None,
+                "error_Z_st": None,
+                "error_k": None,
+                "error_mu": None,
+                "error_p_s": None,
+                "error_rho": None,
+                "error_rho_st": None,
+                "humidityType": "RelativeHumidity",
+                "k": None,
+                "mu": None,
+                "p_atm": {
+                    "real": 760,
+                    "unit": "mm_Hg"
+                },
+                "p_izb": {
+                    "real": 0.8,
+                    "unit": "MPa"
+                },
+                "p_abs": None,
+                "p_phi": None,
+                "p_s": None,
+                "p_st": {
+                    "real": 0.101325,
+                    "unit": "MPa"
+                },
+                "phi": {
+                    "real": 0,
+                    "unit": "percent"
+                },
+                "rho": None,
+                "rho_st": None
+            },
+            "requestList": [
+                {
+                    "documentId": "GOST_30319_3_2015",
+                    "physValueId": "Z"
+                },
+                {
+                    "documentId": "GOST_30319_3_2015",
+                    "physValueId": "Z_st"
+                }
+            ]
+        }}
+
+if __name__ == "__main__":
+    from pprint import pprint
+
+    try:
+        fiz = CalcFizika(ducis)
+        out = fiz.to_dict()
+        pprint(out, sort_dicts=False)
+    except ValidationError as e:
+        # в бою лучше логировать и прокидывать наверх
+        print(f"[ValidationError] {e}")
+
