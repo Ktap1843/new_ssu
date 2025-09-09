@@ -1,4 +1,3 @@
-# file: converters/units_validator.py
 """Единообразные конвертеры единиц для проекта new_ssu.
 
 Покрытие:
