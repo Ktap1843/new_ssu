@@ -2,6 +2,8 @@ from PyFizika import calc_phys_properties_from_requestList
 from phys_prop_exceptions import ValidationError
 from logger_config import get_logger
 
+#todo осталось закинуть физику и можно делать контролньые примеры для состава
+
 class CalcFizika:
     def __init__(self, data: dict):
         self.logger = get_logger(self.__class__.__name__)
