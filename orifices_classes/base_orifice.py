@@ -152,7 +152,7 @@ class BaseOrifice(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def calculate_epsilon(self, delta_p: float, *args, **kwargs) -> float:
+    def calculate_epsilon(self, *args, **kwargs) -> float:
         """Коэффициент расширения"""
         raise NotImplementedError
 
@@ -162,17 +162,17 @@ class BaseOrifice(ABC):
         raise NotImplementedError
 
     #@abstractmethod  todo потом включить после редактивроания 2-ух су
-    def expansion_coefficient_uncertainty(self, dp_p: float, k: float | None = None) -> float:
+    def expansion_coefficient_uncertainty(self) -> float:
         """Относительня погрешность коэффициента расширения"""
         raise NotImplementedError
 
 
     @abstractmethod
-    def pressure_loss(self, delta_p: float) -> float:
+    def pressure_loss(self) -> float:
         """Потери давления"""
         raise NotImplementedError
 
 
 #todo добавиьть заглушки к рассчету доп св-в + раскоментировать в соотв классах методы  + изменить адаптер для записи результатов
-#todo потом можно подклчать пакет погрешностей
+
 #todo затем можно формировать итоговый пакет сборки результатов

@@ -12,6 +12,8 @@ class SharpEdgeOrifice(BaseOrifice):
     def __init__(self, D: float, d: float, Re: float, p: float):
         super().__init__(D, d, Re)
         self.p = p
+        self.delta_p = delta_p
+        self.k = k
 
     def _beta_from_geometry(self):
         return round(self.d / self.D, 12)
@@ -90,15 +92,15 @@ class SharpEdgeOrifice(BaseOrifice):
 
         return ((0.005 / self.d + 0.2)**2 + x * beta**2)**0.5
 
-    def calculate_epsilon(self, delta_p: float, k: float, *args, **kwargs) -> float:
+    def calculate_epsilon(self) -> float:
         """п.5.6"""
         beta = self.calculate_beta()
-        ratio = delta_p / self.p
+        ratio = self.delta_p / self.p
         if ratio > 0.25:
             raise ValueError("Δp/p > 0.25")
-        return 1 - (0.41 + 0.35 * beta**4) * ratio / k
+        return 1 - (0.41 + 0.35 * beta**4) * ratio / self.k
 
-    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+    def expansion_coefficient_uncertainty(self) -> float:
         """
         Относительная погрешность
         """
@@ -107,9 +109,9 @@ class SharpEdgeOrifice(BaseOrifice):
             n = 2
         elif beta > 0.75:
             n = 4
-        return n * delta_p / self.p
+        return n * self.delta_p / self.p
 
-    def pressure_loss(self, delta_p: float, *args, **kwargs) -> float:
+    def pressure_loss(self) -> float:
         """п.5.5"""
         beta = self.calculate_beta()
-        return (0.98 - 0.96 * beta**2) * delta_p
+        return (0.98 - 0.96 * beta**2) * self.delta_p

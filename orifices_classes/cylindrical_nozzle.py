@@ -9,9 +9,13 @@ class CylindricalNozzle(BaseOrifice):
     """
     Цилиндрическое сопло
     """
-    def __init__(self, D: float, d: float, Re: float, p: float, **kwargs):
+    def __init__(self, D: float, d: float, Re: float, p: float, delta_p: float, k: float, **kwargs):
         super().__init__(D, d, Re)
+        self.k = k
+        self.delta_p = delta_p
         self.p = p
+
+
 
     def _beta_from_geometry(self):
         return round(self.d / self.D, 12)
@@ -59,29 +63,27 @@ class CylindricalNozzle(BaseOrifice):
         """
         return 1
 
-    def calculate_epsilon(self, delta_p: float, k: float) -> float:
+    def calculate_epsilon(self) -> float:
         """п.13.4.2"""
-        ratio = delta_p / self.p
+        ratio = self.delta_p / self.p
         if ratio > 0.25:
             logger.error("Δp/p > 0.25 — расчёт ε невозможен")
             raise ValueError("Δp/p > 0.25")
         phi = 1 - ratio
         beta = self.calculate_beta()
-        term1 = phi**(2 / k)
-        term2 = k / (k - 1)
-        term3 = (1 - phi**((k - 1) / k)) / ratio
-        term5 = (1 - beta**4) / (1 - beta**4 * phi**(2 / k))
+        term1 = phi**(2 / self.k)
+        term2 = self.k / (self.k - 1)
+        term3 = (1 - phi**((self.k - 1) / self.k)) / ratio
+        term5 = (1 - beta**4) / (1 - beta**4 * phi**(2 / self.k))
         return math.sqrt(term1 * term2 * term3 * term5)
 
     def expansion_coefficient_uncertainty(self) -> float:
         """
         Относительная погрешность п 13.4.2
         """
-
-
         return 0
 
-    def pressure_loss(self, delta_p: float) -> float:
+    def pressure_loss(self) -> float:
         """п.13.5"""
         beta = self.calculate_beta()
-        return (1 - 1.47 * beta**2 + 0.65 * beta**4) * delta_p
+        return (1 - 1.47 * beta**2 + 0.65 * beta**4) * self.delta_p

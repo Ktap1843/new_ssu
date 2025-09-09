@@ -4,8 +4,11 @@ class WearResistantOrifice(BaseOrifice):
     """
     Износоустойчивая диафрагма
     """
-    def __init__(self, D: float, d: float, Re: float):
+    def __init__(self, D: float, d: float, Re: float, p: float, delta_p: float, k: float):
         super().__init__(D, d, Re)
+        self.p = p
+        self.delta_p = delta_p
+        self.k = k
 
 
     def _beta_from_geometry(self):
@@ -134,22 +137,22 @@ class WearResistantOrifice(BaseOrifice):
         elif beta > 0.63:
             return 0.8 * beta**2 - 0.1
 
-    def calculate_epsilon(self, delta_p: float, p: float, k: float) -> float:
+    def calculate_epsilon(self) -> float:
         """
         п.7.4.2
         """
-        dp_p = delta_p / p
+        dp_p = self.delta_p / self.p
         beta = self.calculate_beta()
         if dp_p > 0.25:
             raise ValueError("Δp/p > 0.25")
-        return 1 - (0.351 + 0.256 * beta**4 + 0.93 * beta**8) * (1 - (1 - dp_p)**(1/k))
+        return 1 - (0.351 + 0.256 * beta**4 + 0.93 * beta**8) * (1 - (1 - dp_p)**(1/self.k))
 
-    def expansion_coefficient_uncertainty(self, delta_p: float, p: float, k: float) -> float:
+    def expansion_coefficient_uncertainty(self) -> float:
         """
         Относительная погрешность
         """
-        return 3.5 * (delta_p / (k * p))
+        return 3.5 * (self.delta_p / (self.k * self.p))
 
-    def pressure_loss(self, delta_p: float) -> float:
+    def pressure_loss(self) -> float:
         beta = self.calculate_beta()
-        return (0.98 - 0.96*beta**2) * delta_p
+        return (0.98 - 0.96*beta**2) * self.delta_p

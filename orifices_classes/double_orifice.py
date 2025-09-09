@@ -8,8 +8,10 @@ class DoubleOrifice(BaseOrifice):
     """
     Двойная диафрагма
     """
-    def __init__(self, D: float, d: float, Re: float, p: float, **kwargs):
+    def __init__(self, D: float, d: float, Re: float, k: float, delta_p: float, p: float, **kwargs):
         super().__init__(D, d=d, Re=Re)
+        self.k = k
+        self.delta_p = delta_p
         self.p = p
 
 
@@ -61,16 +63,16 @@ class DoubleOrifice(BaseOrifice):
         """
         return 0.5
 
-    def calculate_epsilon(self, delta_p: float, k: float) -> float:
+    def calculate_epsilon(self) -> float:
         """п.8.2"""
         beta = self.calculate_beta()
-        ratio = delta_p / self.p
+        ratio = self.delta_p / self.p
         if ratio > 0.25:
             logger.error(f"[Epsilon error] Δp/p = {ratio:.3f} > 0.25 — расчёт невозможен")
             raise ValueError("Δp/p > 0.25")
-        return 1 - (0.41 + 0.35 * beta**4) * ratio / k
+        return 1 - (0.41 + 0.35 * beta**4) * ratio / self.k
 
-    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+    def expansion_coefficient_uncertainty(self) -> float:
         """
         Относительная погрешность
         """
@@ -79,9 +81,9 @@ class DoubleOrifice(BaseOrifice):
             n = 2
         elif beta > 0.75:
             n = 4
-        return n * delta_p / self.p
+        return n * self.delta_p / self.p
 
-    def pressure_loss(self, delta_p: float) -> float:
+    def pressure_loss(self) -> float:
         """(8.3)"""
         beta = self.calculate_beta()
-        return (0.99 - 1.17 * beta**2) * delta_p
+        return (0.99 - 1.17 * beta**2) * self.delta_p

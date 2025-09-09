@@ -9,9 +9,11 @@ class QuarterCircleNozzle(BaseOrifice):
     """
     Сопло «четверть круга»
     """
-    def __init__(self, D: float, d: float, Re: float, p: float, **kwargs):
+    def __init__(self, D: float, d: float, Re: float, p: float, k: float, delta_p: float, **kwargs):
         super().__init__(D, d, Re)
         self.p = p
+        self.k = k
+        self.delta_p = delta_p
         
     def _beta_from_geometry(self):
         return round(self.d / self.D, 12)
@@ -89,18 +91,18 @@ class QuarterCircleNozzle(BaseOrifice):
         """Относительная погрешность п.12.4.1"""
         return 1
 
-    def calculate_epsilon(self, delta_p: float, k: float) -> float:
+    def calculate_epsilon(self) -> float:
         """Коэффициент расширения п.12.4.2"""
-        if delta_p / self.p > 0.25:
+        if self.delta_p / self.p > 0.25:
             raise ValueError("Δp/p > 0.25")
         beta = self.calculate_beta()
-        return 1 - (0.484 + 1.54 * beta**4) * delta_p / (self.p * k)
+        return 1 - (0.484 + 1.54 * beta**4) * self.delta_p / (self.p * self.k)
 
-    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+    def expansion_coefficient_uncertainty(self) -> float:
         """Относительная погрешность п.12.4.2"""
-        return 1.25 * (delta_p / self.p)
+        return 1.25 * (self.delta_p / self.p)
 
-    def pressure_loss(self, delta_p: float) -> float:
+    def pressure_loss(self) -> float:
         """п.12.5"""
         beta = self.calculate_beta()
-        return (1 - 1.56 * beta**2 + 0.63 * beta**4) * delta_p
+        return (1 - 1.56 * beta**2 + 0.63 * beta**4) * self.delta_p

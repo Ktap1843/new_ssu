@@ -7,11 +7,12 @@ class EccentricOrifice(BaseOrifice):
     """
     Эксцентричная диафрагма
     """
-    def __init__(self, D: float, d: float, Re: float, p: float, k: float, Ra: float):
+    def __init__(self, D: float, d: float, Re: float, p: float, k: float, delta_p: float, Ra: float):
         super().__init__(D, d, Re)
         self.p = p      # начальное давление
         self.k = k
         self.Ra = Ra      # шероховатость трубопровода
+        self.delta_p = delta_p
         # # Геометрические параметры
         # self.e = e
         # self.Ed = Ed
@@ -139,22 +140,22 @@ class EccentricOrifice(BaseOrifice):
         elif beta > 0.75:
             return 2
 
-    def calculate_epsilon(self, delta_p: float) -> float:
+    def calculate_epsilon(self) -> float:
         """Коэффициент расширения п.10.4.2"""
-        ratio = delta_p / self.p
+        ratio = self.delta_p / self.p
         if ratio > 0.25:
             logger.error(f"[Epsilon error] Δp/p = {ratio:.3f} > 0.25 — расчёт невозможен")
             raise ValueError("Δp/p > 0.25")
         beta = self.calculate_beta()
         return 1 - (0.351 + 0.256 * beta**4 + 0.93 * beta**8) * (1 - ratio**(1/self.k))
 
-    def expansion_coefficient_uncertainty(self, delta_p: float) -> float:
+    def expansion_coefficient_uncertainty(self) -> float:
         """
         Относительная погрешность
         """
-        return (3.5 * delta_p) / (self.p * self.k)
+        return (3.5 * self.delta_p) / (self.p * self.k)
 
-    def pressure_loss(self, delta_p: float) -> float:
+    def pressure_loss(self) -> float:
         """Потери давления п.10.5"""
         beta = self.calculate_beta()
-        return (1 - beta**1.9) * delta_p
+        return (1 - beta**1.9) * self.delta_p
