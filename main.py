@@ -1,4 +1,3 @@
-# file: main.py
 from __future__ import annotations
 
 import argparse
@@ -107,7 +106,7 @@ def _iter_inputs(base: Path, pattern: str) -> Iterable[Path]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Запуск расчёта new_ssu")
-    ap.add_argument("--input", type=Path, default=Path("inputdata/conical_01.json"),
+    ap.add_argument("--input", type=Path, default=Path("inputdata/sharp_01.json"),
                     help="входной JSON или директория с JSON-файлами")
     ap.add_argument("--output", type=Path, default=Path("outputdata/result.json"),
                     help="файл результата (для одиночного запуска)")

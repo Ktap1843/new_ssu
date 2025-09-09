@@ -8,10 +8,12 @@ class ConeFlowMeter(BaseOrifice):
     """
     Конусный преобразователь расхода
     """
-    def __init__(self, D: float, d: float, Re: float, alpha: float, p: float, **kwargs):
+    def __init__(self, D: float, d: float, Re: float, alpha: float, p: float, dp: float, k: float, **kwargs):
         super().__init__(D, d, Re)
         self.alpha = alpha
         self.p = p
+        self.k = k
+        self.dp = dp
         # todo = d_k(делал как d -- нужно ли поправку по температуре делать) / D
 
     def _beta_from_geometry(self):

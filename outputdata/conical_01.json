@@ -16,17 +16,7 @@
     "beta": 0.3,
     "d_Cm": 1.0,
     "d_Epsilonm": null,
-    "ssu_results": {
-      "beta": 0.3,
-      "E_speed": 1.0040747710110163,
-      "straightness": null,
-      "C": 0.7503351926086133,
-      "ssu_params": {
-        "error": "Cannot cast array data from dtype('O') to dtype('float64') according to the rule 'safe'"
-      },
-      "Epsilon": 0.9980521444907964,
-      "pressure_loss": 13068.0
-    },
+    "ssu_results": {},
     "flow": {
       "mass_flow": 0.0781116134253974,
       "Re": 52345.729525187024,
@@ -66,6 +56,33 @@
         "rel": 0.022910746921780203,
         "percent": 2.2910746921780203
       }
+    },
+    "errors_flow": {
+      "v_D": 22.387359836901123,
+      "v_d": 20.38735983690112,
+      "u_inputs": {
+        "u_C": 1.0,
+        "u_eps": 3.944858272848088e-05,
+        "u_dp": 0.02,
+        "u_p": 0.003186887195995491,
+        "u_corr": 0.01,
+        "u_rho": 0.0,
+        "u_rho_std": 0.0,
+        "u_geom": 0.0
+      },
+      "u_Qm": {
+        "rel": 1.000249969535711,
+        "percent": 100.0249969535711
+      },
+      "u_Qv": {
+        "rel": 1.000249969535711,
+        "percent": 100.0249969535711
+      },
+      "u_Qstd": {
+        "rel": 1.000249969535711,
+        "percent": 100.0249969535711
+      },
+      "skip": false
     }
   }
 }

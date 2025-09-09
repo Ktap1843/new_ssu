@@ -17,7 +17,7 @@ try:
     _log = get_logger("CalculationAdapter")
 except Exception:
     try:
-        from logger import get_logger  # запасной вариант
+        from logger_config import get_logger  # запасной вариант
         _log = get_logger("CalculationAdapter")
     except Exception:  # no-op
         class _Dummy:
@@ -89,6 +89,14 @@ def _coerce_mu_si(val_from_values: Any, val_from_raw_node: Any) -> Optional[floa
         return v1
     return _from_any(val_from_raw_node)
 
+def _rel_only(node):
+    """Вытащить node['rel'] если он есть, иначе None."""
+    try:
+        if isinstance(node, dict) and "rel" in node:
+            return float(node["rel"])
+    except Exception:
+        pass
+    return None
 
 # -------------------- Straightness: расчёт длин прямых участков --------------------
 
@@ -720,6 +728,96 @@ def run_calculation(*args: Any, **kwargs: Any):
     # --------------------------------- Straightness ---------------------------------
     straight_res = _maybe_calc_straightness(ssu_name, d_, D_, Ra_m, raw)
 
+    # --------------------------------- Errors Flow (C, ε, расходы) ---------------------------------
+    errors_flow_block = {"skip": True}
+    try:
+        # гибкий импорт SimpleErrFlow
+        SEF = None
+        for modname in ("simple_err_flow", "errors_flow.simple_err_flow", "errors_flow"):
+            try:
+                #m = import_module(modname)
+                from calc_flow.err_flow import SimpleErrFlow
+                SEF = SimpleErrFlow
+                if SEF:
+                    break
+            except Exception:
+                continue
+
+        if SEF is not None:
+            # Входные относительные из ранее посчитанного блока errors
+            inputs_rel = (errors_res or {}).get("inputs_rel") or {}
+            u_dp = _rel_only(inputs_rel.get("dp"))
+            u_p = _rel_only(inputs_rel.get("p")) if _rel_only(inputs_rel.get("p")) is not None else _rel_only(
+                inputs_rel.get("p_abs"))
+            u_corr = _rel_only(inputs_rel.get("corrector"))
+            if u_corr is None:
+                u_corr = 0.0  # если корректора нет — считаем 0
+
+            # Плотности и геометрия: если неопределённости не подаются — оставляем 0.0 (можно будет прокинуть позже)
+            u_rho = 0.0
+            u_rho_std = 0.0
+            u_geom = 0.0
+
+            # Конструктор + геом. чувствительности
+            beta_eff = getattr(cf, "beta", None)
+            if beta_eff is None and D_:
+                beta_eff = d_ / D_
+
+            ef = SEF(ssu_type=ssu_name, beta=float(beta_eff), d=d_, D=D_, phase="gas")
+
+            v_D_val = v_d_val = None
+            try:
+                v_D_val, v_d_val = ef.sensitivities_geom()
+            except Exception as e:
+                _log.debug("sensitivities_geom пропущены: %s", e)
+
+            # Вклады C и ε
+            u_C = SEF.coeff_C(d_Cm)  # d_Cm уже относительная (доли)
+            eps_ = getattr(cf, "epsilon", None)
+            if eps_ is None:
+                eps_ = ssu_results.get("epsilon", 1.0)
+
+            u_eps = SEF.coeff_epsilon(
+                epsilon=float(eps_),
+                u_epsm=d_Epsilonm,  # относительная (доли)
+                u_dp=u_dp,  # относительная (доли)
+                u_p=u_p,  # относительная (доли)
+                u_k=0.0  # при необходимости можно подать
+            )
+
+            # Сводные по расходам
+            u_dp_val = 0.0 if u_dp is None else float(u_dp)
+            u_Qm = SEF.flow_mass(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho=u_rho, u_geom=u_geom, u_corr=float(u_corr))
+            u_Qv = SEF.flow_vol_actual(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho=u_rho, u_geom=u_geom,
+                                       u_corr=float(u_corr))
+            u_Qstd = SEF.flow_vol_std(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho_std=u_rho_std, u_geom=u_geom,
+                                      u_corr=float(u_corr))
+
+            errors_flow_block = {
+                "v_D": v_D_val,
+                "v_d": v_d_val,
+                "u_inputs": {
+                    "u_C": u_C,
+                    "u_eps": u_eps,
+                    "u_dp": u_dp_val,
+                    "u_p": 0.0 if u_p is None else float(u_p),
+                    "u_corr": float(u_corr),
+                    "u_rho": float(u_rho),
+                    "u_rho_std": float(u_rho_std),
+                    "u_geom": float(u_geom),
+                },
+                "u_Qm": {"rel": u_Qm, "percent": u_Qm * 100.0},
+                "u_Qv": {"rel": u_Qv, "percent": u_Qv * 100.0},
+                "u_Qstd": {"rel": u_Qstd, "percent": u_Qstd * 100.0},
+                "skip": False,
+            }
+        else:
+            _log.warning("SimpleErrFlow не найден — блок errors_flow будет пропущен")
+
+    except Exception as e:
+        _log.warning("Errors Flow расчёт не выполнен: %s", e)
+        errors_flow_block = {"skip": False, "error": str(e)}
+
     # Итоговый словарь
     result = {
         "type": ssu_name,
@@ -736,6 +834,7 @@ def run_calculation(*args: Any, **kwargs: Any):
         "flow": flow_res,
         "straightness": straight_res if isinstance(straight_res, dict) else {"skip": True},
         "errors": errors_res,   # <-- единый блок с T, p, dp, corrector
+        "errors_flow": errors_flow_block,
     }
     return result
 

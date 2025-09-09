@@ -1,143 +1,88 @@
 {
-  "meta": {
-    "ts": "2025-09-08T11:21:36.890809Z",
-    "input": "inputdata\\conical_01.json",
-    "type": "conical",
-    "methodic": "otHER",
-    "controller": "CalculationController"
-  },
-  "remarks": [
-    "[OK] p_abs <- physPackage/physProperties/p_abs → 3.2e+06 Pa",
-    "[INFO] Поле 'p_atm' не найдено (пути: physPackage/physProperties/p_atm, physPackage/p_atm).",
-    "[INFO] Поле 'p_st' не найдено (пути: physPackage/physProperties/p_st, physPackage/p_st).",
-    "[OK] dp <- physPackage/physProperties/dp → 15000 Pa",
-    "[OK] T <- physPackage/physProperties/T → 18 C",
-    "[INFO] Поле 'T_st' не найдено (пути: physPackage/physProperties/T_st, physPackage/T_st).",
-    "[OK] d20 <- lenPackage/lenProperties/d20 → 0.030 m",
-    "[OK] D20 <- lenPackage/lenProperties/D20 → 0.100 m"
-  ],
-  "prepared": "<controllers.prepare_controller.PreparedController object at 0x000001C93CA5AC90>",
   "result": {
-    "type": "conical",
-    "D": 0.0999978976,
-    "d": 0.029999369279999997,
-    "p1": 3200000.0,
-    "t1": 291.15,
-    "dp": 15000.0,
-    "mu": 18.999999999999996,
-    "Roc": 0.64,
-    "Ro": 0.72,
-    "k": 1.37,
-    "C": 0.7503351926086133,
-    "E": 1.0040747710110163,
-    "epsilon": 0.9980521444907964,
-    "beta": 0.3,
-    "ssu_results": {
-      "beta": 0.3,
-      "E_speed": 1.0040747710110163,
-      "straightness": null,
-      "C": 0.7503351926086133,
-      "ssu_params": {
-        "error": "Cannot cast array data from dtype('O') to dtype('float64') according to the rule 'safe'"
-      },
-      "Epsilon": 0.9980521444907964,
-      "pressure_loss": 13068.0
-    },
+    "type": "sharp",
+    "D": 0.0499973825,
+    "d": 0.019998953,
+    "p1": 2000000.0,
+    "t1": 288.15,
+    "dp": 28000.0,
+    "mu": 20.0,
+    "Roc": 0.68,
+    "Ro": 0.7,
+    "k": 1.4,
+    "C": 0.6057002851324191,
+    "E": 1.0130511230913846,
+    "epsilon": 0.9958104,
+    "beta": 0.4,
+    "d_Cm": 0.46573788716181386,
+    "d_Epsilonm": 0.028,
+    "ssu_results": {},
     "flow": {
-      "mass_flow": 0.0781116134253974,
-      "Re": 52345.729525187024,
-      "volume_flow_actual": 0.1084883519797186,
-      "volume_flow_std": 0.12204939597718342
+      "mass_flow": 0.03800259317350771,
+      "Re": 48388.9375918755,
+      "volume_flow_actual": 0.054289418819296734,
+      "volume_flow_std": 0.055886166431628984
     },
     "straightness": {
       "skip": false,
-      "length_first_ms_to_ssu_D": 12.0,
-      "length_between_ms_D": 10,
+      "length_first_ms_to_ssu_D": 60.0,
+      "length_between_ms_D": 7.5,
       "length_after_SSU": null,
-      "relative_roughness_Ra_D": 2.0000420488840356e-05,
-      "roughness_limit_Ra_D": 0.01956,
+      "relative_roughness_Ra_D": 6.000314116443996e-05,
+      "roughness_limit_Ra_D": 0.006849999999999999,
       "is_smooth_pipe": true
     },
     "errors": {
-      "early": {
-        "skip": false,
-        "early": true,
-        "details": {
-          "inputs_rel": {
-            "corrector": {
-              "rel": 0.01,
-              "percent": 1.0
-            },
-            "flow": {
-              "rel": 0.0058309518948453,
-              "percent": 0.58309518948453
-            }
-          }
+      "skip": false,
+      "inputs_rel": {
+        "corrector": {
+          "rel": 0.01,
+          "percent": 1.0
         },
-        "by_output": {
-          "mass_flow": {
-            "rel": 0.011575836902790225,
-            "percent": 1.1575836902790226
-          },
-          "volume_flow_actual": {
-            "rel": 0.011575836902790225,
-            "percent": 1.1575836902790226
-          },
-          "volume_flow_std": {
-            "rel": 0.011575836902790225,
-            "percent": 1.1575836902790226
-          }
+        "T": {
+          "rel": 0.0038800416059340446,
+          "percent": 0.3880041605934045
         },
-        "summary": {
-          "rel": 0.011575836902790225,
-          "percent": 1.1575836902790226
+        "p": {
+          "rel": 0.005099019513592785,
+          "percent": 0.5099019513592785
+        },
+        "dp": {
+          "rel": 0.010714285714285714,
+          "percent": 1.0714285714285714
         }
       },
-      "final": {
-        "skip": false,
-        "details": {
-          "inputs_rel": {
-            "T": {
-              "rel": 0.003840061785161927,
-              "percent": 0.3840061785161927
-            },
-            "p_abs": {
-              "rel": 0.003186887195995491,
-              "percent": 0.3186887195995491
-            },
-            "dp": {
-              "rel": 0.02,
-              "percent": 2.0
-            },
-            "corrector": {
-              "rel": 0.01,
-              "percent": 1.0
-            },
-            "flow": {
-              "rel": 0.0058309518948453,
-              "percent": 0.58309518948453
-            }
-          }
-        },
-        "by_output": {
-          "mass_flow": {
-            "rel": 0.01549921227445012,
-            "percent": 1.549921227445012
-          },
-          "volume_flow_actual": {
-            "rel": 0.01549921227445012,
-            "percent": 1.549921227445012
-          },
-          "volume_flow_std": {
-            "rel": 0.01549921227445012,
-            "percent": 1.549921227445012
-          }
-        },
-        "summary": {
-          "rel": 0.01549921227445012,
-          "percent": 1.549921227445012
-        }
+      "summary": {
+        "rel": 0.015995331857486614,
+        "percent": 1.5995331857486614
       }
+    },
+    "errors_flow": {
+      "v_D": 0.05254515599343186,
+      "v_d": 2.052545155993432,
+      "u_inputs": {
+        "u_C": 0.46573788716181386,
+        "u_eps": 0.028000044131309812,
+        "u_dp": 0.010714285714285714,
+        "u_p": 0.005099019513592785,
+        "u_corr": 0.01,
+        "u_rho": 0.0,
+        "u_rho_std": 0.0,
+        "u_geom": 0.0
+      },
+      "u_Qm": {
+        "rel": 0.46680893085680475,
+        "percent": 46.680893085680474
+      },
+      "u_Qv": {
+        "rel": 0.46680893085680475,
+        "percent": 46.680893085680474
+      },
+      "u_Qstd": {
+        "rel": 0.46680893085680475,
+        "percent": 46.680893085680474
+      },
+      "skip": false
     }
   }
 }

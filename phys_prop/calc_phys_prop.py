@@ -6,6 +6,7 @@ class CalcFizika:
     def __init__(self, data: dict):
         self.logger = get_logger(self.__class__.__name__)
         self.data = data
+        if self.data['physPackage']['requestList'] == []:
         self.combined_phys_properties: dict = {}
 
         self.Z = None
