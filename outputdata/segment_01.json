@@ -33,7 +33,29 @@
       "is_smooth_pipe": true
     },
     "errors": {
-      "skip": true
+      "skip": false,
+      "inputs_rel": {
+        "corrector": {
+          "rel": 0.01,
+          "percent": 1.0
+        },
+        "T": {
+          "rel": 0.003840061785161927,
+          "percent": 0.3840061785161927
+        },
+        "p": {
+          "rel": 0.003186887195995491,
+          "percent": 0.3186887195995491
+        },
+        "dp": {
+          "rel": 0.02,
+          "percent": 2.0
+        }
+      },
+      "summary": {
+        "rel": 0.022910746921780203,
+        "percent": 2.2910746921780203
+      }
     }
   }
 }

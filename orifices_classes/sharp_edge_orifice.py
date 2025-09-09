@@ -9,7 +9,7 @@ class SharpEdgeOrifice(BaseOrifice):
     """
     Диафрагма с прямоугольным входом
     """
-    def __init__(self, D: float, d: float, Re: float, p: float):
+    def __init__(self, D: float, d: float, Re: float, p: float, dp: float, k: float):
         super().__init__(D, d, Re)
         self.p = p
         self.dp = dp

@@ -27,7 +27,29 @@
       "skip": true
     },
     "errors": {
-      "skip": true
+      "skip": false,
+      "inputs_rel": {
+        "corrector": {
+          "rel": 0.01,
+          "percent": 1.0
+        },
+        "T": {
+          "rel": 0.003920862664386796,
+          "percent": 0.3920862664386796
+        },
+        "p": {
+          "rel": 0.002039607805437114,
+          "percent": 0.2039607805437114
+        },
+        "dp": {
+          "rel": 0.3,
+          "percent": 30.0
+        }
+      },
+      "summary": {
+        "rel": 0.3001991558349773,
+        "percent": 30.01991558349773
+      }
     }
   }
 }
