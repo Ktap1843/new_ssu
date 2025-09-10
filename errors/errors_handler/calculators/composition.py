@@ -1,4 +1,3 @@
-# errors/errors_handler/calculators/composition.py
 from __future__ import annotations
 from typing import Dict, Optional, Any, List
 from logger_config import get_logger
@@ -13,27 +12,14 @@ __all__ = ["CompositionCalculator"]
 
 
 class CompositionCalculator:
-    """
-    Обёртка над run_method10 (§10)
-    Ожидает payload:
-        {
-          "compositionErrorPackage": {
-            "composition": {... в процентах ...},
-            "error_composition": {...},
-            "request": ...
-          }
-        }
-    """
-
     def __init__(self, payload: Dict[str, Any]) -> None:
         self.payload = payload
 
     def compute(
         self,
         *,
-        mode: str = "auto",                 # "auto" | "general" | "methane_by_diff"
+        mode: str = "auto",
         methane_name: str = "Methane",
-        # Параметры 10.28/10.29
         delta_rho_f: float = 0.08,
         theta_rho_T: float = -1.67e-3, delta_T: float = 0.20,
         theta_rho_p: float =  1.655e-2, dp: float = 0.15,

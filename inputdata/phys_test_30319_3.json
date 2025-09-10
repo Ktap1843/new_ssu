@@ -7,65 +7,41 @@
     ]
   },
   "physPackage": {
-    "physProperties": {
-      "methodic": "otHER",
-      "aggregate_state": "gas",
-      "T": {
-        "real": 18,
-        "unit": "C"
-      },
-      "p_abs": {
-        "real": 320000,
-        "unit": "Pa"
-      },
-      "dp": {
-        "real": 15,
-        "unit": "kPa"
-      },
-      "Ro": null,
-      "Roc": null,
-      "k": null,
-      "mu": null
+  "physProperties": {
+    "methodic": "",
+    "aggregate_state": "gas",
+
+    "T":   { "real": 18, "unit": "C" },
+    "p_abs": { "real": 2, "unit": "MPa" },
+    "dp": { "real": 8, "unit": "KPa" },
+
+    "T_st": { "real": 20, "unit": "C" },
+    "p_st": { "real": 0.101325, "unit": "MPa" },
+
+    "phi": { "real": 0, "unit": "percent" },
+    "humidityType": "RelativeHumidity",
+
+    "composition": {
+      "CarbonDioxide": 0.25,
+      "Ethane": 5.7,
+      "Methane": 90,
+      "Nitrogen": 0.25,
+      "Propane": 3,
+      "iButane": 0.2,
+      "iPentane": 0.2,
+      "nButane": 0.2,
+      "nPentane": 0.2
     },
-    "requestList": [
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "Z"
-            },
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "Z_st"
-            },
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "K"
-            },
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "rho"
-            },
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "rho_st"
-            },
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "W"
-            },
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "k"
-            },
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "mu"
-            },
-            {
-                "documentId": "GOST_30319_3",
-                "physValueId": "p_s"
-            }
-        ]
+
+    "Ro": null, "Roc": null, "k": null, "mu": null
   },
+  "requestList": [
+    { "documentId": "GOST_30319_3_2015", "physValueId": "rho" },
+    { "documentId": "GOST_30319_3_2015", "physValueId": "rho_st" },
+    { "documentId": "GOST_30319_3_2015", "physValueId": "k" },
+    { "documentId": "GOST_30319_3_2015", "physValueId": "mu" }
+  ]
+},
   "lenPackage": {
     "lenProperties": {
       "d20": {

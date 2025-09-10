@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import math
 from typing import Tuple, Mapping, Any
 
@@ -25,28 +24,16 @@ def _rel_of(node: Any) -> float | None:
 
 
 class SimpleErrFlow:
-    """
-    Минималистичный класс для расчёта:
-      1) Геометрические чувствительности v_D, v_d (10.16–10.21) → sensitivities_geom()
-      2) Вклад C и ε: coeff_C(), coeff_epsilon()  (ε по 10.22 — БЕЗ коэффициентов чувствительности)
-      3) Итоговые погрешности расходов: flow_mass(), flow_vol_actual(), flow_vol_std()
-
-    Никаких коэффициентов чувствительности здесь нет — только «чистые» относительные вклады.
-    """
-
-    def __init__(self, *, ssu_type: str, beta: float, d: float | None = None, D: float | None = None, phase: str = "gas"):
+    def __init__(self, *, ssu_type: str, beta: float, d: float | None = None, D: float | None = None, phase: str = "gas", phys_block: dict):
         self.type = (ssu_type or "").lower()
         self.beta = float(beta)
         self.d = None if d is None else float(d)
         self.D = None if D is None else float(D)
         self.phase = (phase or "gas").lower()
+        self.phys_block = phys_block
 
-    # ------------- (1) Геом. чувствительности 10.16–10.21 -------------
+
     def sensitivities_geom(self) -> Tuple[float, float]:
-        """
-        Вернёт (v_D, v_d) по формулам 10.16–10.21.
-        Используются self.type, self.beta, self.d, self.D.
-        """
         if not (0.0 < self.beta < 1.0):
             raise ValueError("beta должна быть в (0,1) для расчёта v_D, v_d")
 
@@ -80,6 +67,28 @@ class SimpleErrFlow:
 
         return float(v_D), float(v_d)
 
+    @staticmethod
+    def density_from_phys(self,
+            Xa: float, Xy: float,
+            u_Xa: float, u_Xy: float,
+            u_T: float = 0.0, u_p: float = 0.0, u_N: dict | {} = {}) -> dict:
+
+
+
+        if u_N is {} and (Xa or Xy is None):
+            u_rho = (self.phys_block.get("err_rho")**2 + self.phys_block.thetas.get("theta_rho_p_abs")**2 * u_p**2 +
+                     self.phys_block.thetas.get("theta_rho_T")**2 * u_T**2)**0.5
+        elif Xa or Xy is not None:
+            u_rho = (self.phys_block.get("err_rho")**2 + self.phys_block.thetas.get("theta_rho_p_abs")**2 * u_p**2 +
+                     self.phys_block.thetas.get("theta_rho_T")**2 * u_T**2 +
+                     self.phys_block.thetas.get("theta_rho_Xa")**2 * u_Xa**2 +
+                     self.phys_block.thetas.get("theta_rho_Xy")**2 * u_Xy**2)**0.5
+        elif u_N is not {}:
+            u_rho = (self.phys_block.get("err_rho")**2 + self.phys_block.thetas.get("theta_rho_p_abs")**2 * u_p**2 +
+                     self.phys_block.thetas.get("theta_rho_T")**2 * u_T**2 + (self.phys_block.thetas.get("theta_rho_N") * dx)**2)**0.5 #сделать теты по составу и дбавить погрешности компонентов
+
+        return u_rho
+
     # ------------- (2) Вклады C и ε -------------
     @staticmethod
     def coeff_C(u_d_Cm: float | None) -> float:
@@ -104,26 +113,26 @@ class SimpleErrFlow:
 
     # ------------- (3) Итоговые расходы 10.13–10.15 (унифицированный вид) -------------
     @staticmethod
-    def flow_mass(*, u_C: float, u_eps: float, u_dp: float, u_rho: float = 0.0, u_geom: float = 0.0, u_corr: float = 0.0) -> float:
+    def flow_mass(*, u_C: float, u_eps: float, u_dp: float, u_rho: float = 0.0, u_v_D, u_v_d: float = 0.0, u_corr: float = 0.0) -> float:
         """
-        Массовый расход (10.13—обобщённо): u_Qm = sqrt( u_C^2 + u_ε^2 + u_Δp^2 + u_ρ^2 + u_geom^2 + u_corr^2 )
+        Массовый расход (10.13—обобщённо): u_Qm = sqrt( u_C^2 + u_ε^2 + u_Δp^2 + u_ρ^2 + u_v_D, u_v_d^2 + u_corr^2 )
         Все величины — относительные (доли).
         """
-        return _rss([u_C, u_eps, u_dp, u_rho, u_geom, u_corr])
+        return _rss([u_C, u_eps, u_dp, u_rho, u_v_D, u_v_d, u_corr])
 
     @staticmethod
-    def flow_vol_actual(*, u_C: float, u_eps: float, u_dp: float, u_rho: float = 0.0, u_geom: float = 0.0, u_corr: float = 0.0) -> float:
+    def flow_vol_actual(*, u_C: float, u_eps: float, u_dp: float, u_rho: float = 0.0, u_v_D, u_v_d: float = 0.0, u_corr: float = 0.0) -> float:
         """
         Объёмный в рабочих условиях (10.14—обобщённо): тот же корень — плотность берётся «рабочая».
         """
-        return _rss([u_C, u_eps, u_dp, u_rho, u_geom, u_corr])
+        return _rss([u_C, u_eps, u_dp, u_rho, u_v_D, u_v_d, u_corr])
 
     @staticmethod
-    def flow_vol_std(*, u_C: float, u_eps: float, u_dp: float, u_rho_std: float = 0.0, u_geom: float = 0.0, u_corr: float = 0.0) -> float:
+    def flow_vol_std(*, u_C: float, u_eps: float, u_dp: float, u_rho_std: float = 0.0, u_v_D, u_v_d: float = 0.0, u_corr: float = 0.0) -> float:
         """
         Объёмный в стандартных условиях (10.15—обобщённо): вместо u_ρ — u_ρ,std.
         """
-        return _rss([u_C, u_eps, u_dp, u_rho_std, u_geom, u_corr])
+        return _rss([u_C, u_eps, u_dp, u_rho_std, u_v_D, u_v_d, u_corr])
 
     # ------------- мини-репорт только по расходам -------------
     @staticmethod

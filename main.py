@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import argparse
 import json
 import re
@@ -10,9 +9,9 @@ from pathlib import Path
 from typing import Any, Dict, Iterable
 from json import JSONDecodeError
 
-from logger_config import get_logger  # используем ТОЛЬКО ваш логгер во всём проекте
+from logger_config import get_logger
 
-logger = get_logger("Main")  # модульный логгер
+logger = get_logger("Main")
 
 # --- JSON utils -------------------------------------------------------------
 _COMMENT_BLOCK_RE = re.compile(r"/\*.*?\*/", re.S)
@@ -106,7 +105,7 @@ def _iter_inputs(base: Path, pattern: str) -> Iterable[Path]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Запуск расчёта new_ssu")
-    ap.add_argument("--input", type=Path, default=Path("inputdata/sharp_01.json"),
+    ap.add_argument("--input", type=Path, default=Path("inputdata/phys_test_30319_3.json"),
                     help="входной JSON или директория с JSON-файлами")
     ap.add_argument("--output", type=Path, default=Path("outputdata/result.json"),
                     help="файл результата (для одиночного запуска)")

@@ -1,4 +1,3 @@
-# errors/errors_handler/calculators/density.py
 from __future__ import annotations
 from typing import Optional, Tuple
 from logger_config import get_logger

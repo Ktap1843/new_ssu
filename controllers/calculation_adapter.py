@@ -27,6 +27,9 @@ except Exception:
             def error(self, *a, **k): pass
         _log = _Dummy()
 
+from phys_prop.calc_phys_prop import PhysMinimalRunner, make_theta_list
+
+
 
 # -------------------- Утилиты --------------------
 
@@ -506,6 +509,157 @@ def run_calculation(*args: Any, **kwargs: Any):
     # ---------- 1.5) Погрешности (один блок) ----------
     errors_res = _calc_errors_simple(raw, v)
 
+    # ---- ФИЗИКА (+θ) ----
+    phys_block = {"skip": True}
+    u_rho_rel = u_rho_std_rel = 0.0
+
+    try:
+        if PhysMinimalRunner is None:
+            raise ImportError("PhysMinimalRunner не найден")
+
+        # дефолты для std-условий и сухого газа (если не заданы)
+        pp = raw.setdefault("physPackage", {}).setdefault("physProperties", {})
+        pp.setdefault("T_st", {"real": 20, "unit": "C"})
+        pp.setdefault("p_st", {"real": 0.101325, "unit": "MPa"})
+        pp.setdefault("phi", {"real": 0, "unit": "percent"})
+        pp.setdefault("humidityType", "RelativeHumidity")
+
+        # 1) считаем физику (без θ)
+        phys = PhysMinimalRunner(raw).to_dict()
+
+        # подставляем в v, если пусто
+        v.setdefault("Ro", phys.get("ro"))
+        v.setdefault("Roc", phys.get("ro_st"))
+        v.setdefault("k", phys.get("k"))
+        if v.get("mu") is None and phys.get("mu") is not None:
+            v["mu"] = {"real": float(phys["mu"]) * 1e-6, "unit": "Pa_s"}  # μПа·с → _coerce_mu_si переведёт в Па·с
+
+        # относительные u_ρ и u_ρ,st для errors_flow
+        u_rho_rel = (phys["err_ro"] / phys["ro"]) if phys.get("err_ro") and phys.get("ro") else 0.0
+        u_rho_std_rel = (phys["err_ro_st"] / phys["ro_st"]) if phys.get("err_ro_st") and phys.get("ro_st") else 0.0
+
+        # 2) ТЕТЫ: сначала пробуем stp_errors, затем — устойчивый фоллбек
+        def _calc_thetas_safe(base_raw: dict) -> Optional[dict]:
+            thetas = {}
+
+            # --- попытка через stp_errors (с p_abs и p)
+            try:
+                stp_mod = import_module("stp_errors")
+                calc_thetas = getattr(stp_mod, "calc_thetas_from_requestList", None)
+                if callable(calc_thetas):
+                    data_for_t = dict(base_raw)  # не мутим исходник
+                    ppkg = data_for_t.setdefault("physPackage", {})
+                    # безопасный requestList — только rho и k (твой documentId сохраняем, если есть)
+                    rl_src = list((base_raw.get("physPackage") or {}).get("requestList") or [])
+                    doc = rl_src[0]["documentId"] if rl_src and isinstance(rl_src[0], dict) else "GOST_30319_3"
+                    ppkg["requestList"] = [{"documentId": doc, "physValueId": "rho"},
+                                           {"documentId": doc, "physValueId": "k"}]
+
+                    def _try(reqs):
+                        out = calc_thetas(reqs, **data_for_t)
+                        if isinstance(out, dict):
+                            thetas.update(out)
+
+                    # T и p_abs
+                    _try([{"value": "rho", "variable": "T"},
+                          {"value": "k", "variable": "T"},
+                          {"value": "rho", "variable": "p_abs"},
+                          {"value": "k", "variable": "p_abs"}])
+                    # если по давлению пусто — попробуем 'p'
+                    if not any(k.startswith(("theta_rho_p", "theta_k_p")) for k in thetas):
+                        _try([{"value": "rho", "variable": "p"},
+                              {"value": "k", "variable": "p"}])
+            except Exception:
+                pass
+
+            # --- фоллбек: центральная разность на PhysMinimalRunner
+            def _fd_logtheta(var: str, h: float = 0.01):
+                """вернёт словарь с theta_rho_* и theta_k_* для одной переменной"""
+                sub = {}
+
+                def _run_with(var_value_upd: dict) -> Optional[dict]:
+                    # делаем глубокую копию только physProperties (хватает)
+                    raw2 = dict(base_raw)
+                    phys2 = raw2.setdefault("physPackage", {}).setdefault("physProperties", {}).copy()
+                    phys2.update(var_value_upd)
+                    raw2["physPackage"]["physProperties"] = phys2
+                    try:
+                        return PhysMinimalRunner(raw2).to_dict()
+                    except Exception:
+                        return None
+
+                if var == "T":
+                    T_node = (base_raw.get("physPackage") or {}).get("physProperties", {}).get("T")
+                    T_C = T_node.get("real") if isinstance(T_node, dict) else T_node
+                    if T_C is None:
+                        return sub
+                    T_K = (float(T_C) + 273.15) if float(T_C) < 200 else float(T_C)
+                    T_Kp, T_Km = T_K * (1 + h), T_K * (1 - h)
+                    Tp_C = T_Kp - 273.15;
+                    Tm_C = T_Km - 273.15
+                    up = _run_with({"T": {"real": Tp_C, "unit": "C"}})
+                    dn = _run_with({"T": {"real": Tm_C, "unit": "C"}})
+                    if up and dn and up.get("ro") and dn.get("ro") and up.get("k") and dn.get("k"):
+                        denom = math.log(1 + h) - math.log(1 - h)
+                        sub["theta_rho_T"] = (math.log(up["ro"]) - math.log(dn["ro"])) / denom
+                        sub["theta_k_T"] = (math.log(up["k"]) - math.log(dn["k"])) / denom
+
+                elif var in ("p_abs", "p"):
+                    p_node = (base_raw.get("physPackage") or {}).get("physProperties", {}).get("p_abs")
+                    # поддержим Pa/kPa/MPa; вернём в тех же единицах
+                    if not isinstance(p_node, dict) or "real" not in p_node:
+                        return sub
+                    p_real = float(p_node["real"]);
+                    unit = str(p_node.get("unit", "")).lower()
+                    # → Па
+                    factor = 1.0
+                    if "mpa" in unit:
+                        factor = 1e6
+                    elif "kpa" in unit:
+                        factor = 1e3
+                    p_Pa = p_real * factor
+                    pP, pM = p_Pa * (1 + h), p_Pa * (1 - h)
+
+                    # ← в те же единицы
+                    def _back(pa):
+                        val = pa / factor
+                        return {"real": val, "unit": p_node["unit"]}
+
+                    up = _run_with({"p_abs": _back(pP)})
+                    dn = _run_with({"p_abs": _back(pM)})
+                    if up and dn and up.get("ro") and dn.get("ro") and up.get("k") and dn.get("k"):
+                        denom = math.log(1 + h) - math.log(1 - h)
+                        sub["theta_rho_p_abs"] = (math.log(up["ro"]) - math.log(dn["ro"])) / denom
+                        sub["theta_k_p_abs"] = (math.log(up["k"]) - math.log(dn["k"])) / denom
+
+                return sub
+
+            # дополним недостающие ключи
+            missing_T = not any(k.endswith("_T") for k in thetas)
+            if missing_T:
+                thetas.update(_fd_logtheta("T"))
+            missing_p = not any(k.endswith("_p") or k.endswith("_p_abs") for k in thetas)
+            if missing_p:
+                thetas.update(_fd_logtheta("p_abs"))
+
+            return thetas or None
+
+        phys_thetas = _calc_thetas_safe(raw)
+        # компактный блок для выдачи
+        phys_block = {
+            "skip": False,
+            "rho": v["Ro"], "rho_st": v["Roc"],
+            "k": v["k"], "mu": phys.get("mu"),
+            "err_ro": phys.get("err_ro"),
+            "err_ro_st": phys.get("err_ro_st"),
+            "err_k": phys.get("err_k"),
+            "err_mu": phys.get("err_mu"),
+            "thetas": phys_thetas,
+        }
+    except Exception as e:
+        _log.warning("Физика пропущена: %s", e)
+
+
     # --------------------------------- 2) Создание ССУ ---------------------------------
     try:
         ssu_name = str(raw.get("type", "")).strip().lower()
@@ -763,11 +917,11 @@ def run_calculation(*args: Any, **kwargs: Any):
             if beta_eff is None and D_:
                 beta_eff = d_ / D_
 
-            ef = SEF(ssu_type=ssu_name, beta=float(beta_eff), d=d_, D=D_, phase="gas")
+            ef = SEF(ssu_type=ssu_name, beta=float(beta_eff), d=d_, D=D_, phase="gas", phys_block=phys_block)
 
-            v_D_val = v_d_val = None
+            v_D = v_d = None
             try:
-                v_D_val, v_d_val = ef.sensitivities_geom()
+                v_D, v_d = ef.sensitivities_geom()
             except Exception as e:
                 _log.debug("sensitivities_geom пропущены: %s", e)
 
@@ -785,17 +939,23 @@ def run_calculation(*args: Any, **kwargs: Any):
                 u_k=0.0  # при необходимости можно подать
             )
 
+            # u_rho = SEF.u_density()       #todo все возможные тетты подготовить для состава, для второй части, для моно сред
+            # u_rho_std =   #TODO ЧТО ДЕЛАТЬ С ПЛОТН В СТ УСЛ
+            # u_geom = ((v_D * D)**2 + (v_d * d)**2)**2
+            u_v_D = v_D * D
+            u_v_d = v_d * d
+
             # Сводные по расходам
             u_dp_val = 0.0 if u_dp is None else float(u_dp)
-            u_Qm = SEF.flow_mass(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho=u_rho, u_geom=u_geom, u_corr=float(u_corr))
-            u_Qv = SEF.flow_vol_actual(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho=u_rho, u_geom=u_geom,
+            u_Qm = SEF.flow_mass(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho=u_rho, u_v_D=u_v_D, u_v_d=u_v_d, u_corr=float(u_corr))
+            u_Qv = SEF.flow_vol_actual(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho=u_rho, u_v_D=u_v_D, u_v_d=u_v_d,
                                        u_corr=float(u_corr))
-            u_Qstd = SEF.flow_vol_std(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho_std=u_rho_std, u_geom=u_geom,
+            u_Qstd = SEF.flow_vol_std(u_C=u_C, u_eps=u_eps, u_dp=u_dp_val, u_rho_std=u_rho_std, u_v_D=u_v_D, u_v_d=u_v_d,
                                       u_corr=float(u_corr))
 
             errors_flow_block = {
-                "v_D": v_D_val,
-                "v_d": v_d_val,
+                "u_v_D": u_v_D,
+                "u_v_d": u_v_d,
                 "u_inputs": {
                     "u_C": u_C,
                     "u_eps": u_eps,
@@ -804,11 +964,10 @@ def run_calculation(*args: Any, **kwargs: Any):
                     "u_corr": float(u_corr),
                     "u_rho": float(u_rho),
                     "u_rho_std": float(u_rho_std),
-                    "u_geom": float(u_geom),
                 },
-                "u_Qm": {"rel": u_Qm, "percent": u_Qm * 100.0},
-                "u_Qv": {"rel": u_Qv, "percent": u_Qv * 100.0},
-                "u_Qstd": {"rel": u_Qstd, "percent": u_Qstd * 100.0},
+                "u_Qm": {"rel": u_Qm},
+                "u_Qv": {"rel": u_Qv},
+                "u_Qstd": {"rel": u_Qstd},
                 "skip": False,
             }
         else:
@@ -833,7 +992,8 @@ def run_calculation(*args: Any, **kwargs: Any):
         "ssu_results": ssu_results,
         "flow": flow_res,
         "straightness": straight_res if isinstance(straight_res, dict) else {"skip": True},
-        "errors": errors_res,   # <-- единый блок с T, p, dp, corrector
+        "phys": phys_block,
+        "errors": errors_res,
         "errors_flow": errors_flow_block,
     }
     return result
