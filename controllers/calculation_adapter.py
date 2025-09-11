@@ -27,7 +27,8 @@ except Exception:
             def error(self, *a, **k): pass
         _log = _Dummy()
 
-from phys_prop.calc_phys_prop import PhysMinimalRunner, make_theta_list
+from phys_prop.calc_phys_prop import PhysMinimalRunner, make_theta_list, normalize_composition_percent_map
+
 
 
 
@@ -414,6 +415,12 @@ def _composition_u_and_theta(raw: Mapping[str, Any],
 
     # ВАЖНО: нормализуем перед калькулятором
     safe_pkg = _normalize_composition_pkg_for_cc(pkg)
+    try:
+        comp_in = (safe_pkg.get("composition") or {})
+        if isinstance(comp_in, Mapping):
+            safe_pkg["composition"] = normalize_composition_percent_map(comp_in)
+    except Exception as _e:
+        _log.warning("Composition normalization for CC skipped: %s", _e)
 
     try:
         from errors.errors_handler.calculators.composition import CompositionCalculator as CC
@@ -446,16 +453,13 @@ from functools import lru_cache
 from phys_prop.calc_phys_prop import PhysMinimalRunner
 
 def make_rho_phys_from_raw(base_raw: dict):
-    """
-    Возвращает функцию rho(comp_pct)->rho_SI, где comp_pct — проценты.
-    Берём T, p_abs и прочие условия из base_raw. Кэшируем по составу.
-    """
     @lru_cache(maxsize=128)
     def _rho_cached(items_tuple):
-        comp_pct = dict(items_tuple)
+        comp_pct = dict(items_tuple)  # {'CO2': 2.5, ...} — в процентах
         raw2 = copy.deepcopy(base_raw)
         phys = raw2.setdefault("physPackage", {}).setdefault("physProperties", {})
-        phys["composition"] = comp_pct  # В ПРОЦЕНТАХ
+        # НОРМАЛИЗУЕМ перед расчётом
+        phys["composition"] = normalize_composition_percent_map(comp_pct)
         res = PhysMinimalRunner(raw2).to_dict()
         ro = res.get("ro")
         if ro is None:
@@ -680,6 +684,18 @@ def run_calculation(*args: Any, **kwargs: Any):
         pp.setdefault("humidityType", "RelativeHumidity")
 
         # 1) считаем физику (без θ)
+        raw_phys = dict(raw)  # поверхностная копия корня
+        try:
+            raw_phys_pkg = dict((raw.get("physPackage") or {}))
+            raw_phys_props = dict((raw_phys_pkg.get("physProperties") or {}))
+            comp_raw = raw_phys_props.get("composition")
+            if isinstance(comp_raw, Mapping):
+                raw_phys_props["composition"] = normalize_composition_percent_map(comp_raw)
+            raw_phys_pkg["physProperties"] = raw_phys_props
+            raw_phys["physPackage"] = raw_phys_pkg
+        except Exception as _e:
+            _log.warning("Normalize composition (pre-PhysMinimalRunner) skipped: %s", _e)
+
         phys = PhysMinimalRunner(raw_phys).to_dict()
 
         # подставляем в v, если пусто
