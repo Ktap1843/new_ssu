@@ -6,6 +6,30 @@
       "calculate_flow"
     ]
   },
+  "compositionErrorPackage": {
+  "composition": {
+    "CarbonDioxide": 0.25,
+    "Ethane": 5.7,
+    "Methane": 90,
+    "Nitrogen": 0.25,
+    "Propane": 3,
+    "iButane": 0.2,
+    "iPentane": 0.2,
+    "nButane": 0.2,
+    "nPentane": 0.2
+  },
+  "error_composition": {
+    "CarbonDioxide": { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 },
+    "Ethane":        { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 },
+    "Methane":       { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 },
+    "Nitrogen":      { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 },
+    "Propane":       { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 },
+    "iButane":       { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 },
+    "iPentane":      { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 },
+    "nButane":       { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 },
+    "nPentane":      { "errorInputMethod": "ByValue", "intrError": { "errorTypeId": "RelErr", "value": { "real": 1.3, "unit": "percent" } }, "complError": 0.5 }},
+  "request": null
+},
   "physPackage": {
   "physProperties": {
     "methodic": "",
