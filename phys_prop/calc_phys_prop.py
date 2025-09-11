@@ -86,13 +86,6 @@ def normalize_composition_percent_map(comp_in: Mapping[str, Any],
 # -------------------- минимальный раннер --------------------
 
 class PhysMinimalRunner:
-    """
-    Минимальный раннер PyFizika под твои нужды:
-      - тянет только rho, rho_st, k, mu (+ их ошибки)
-      - умеет падать на поэлементные вызовы, если батч вернул errorString
-      - опционально считает теты (rho/k по T и p_abs)
-    """
-
     NEED_VALUES = ["rho", "rho_st", "k", "mu"]
 
     def __init__(
