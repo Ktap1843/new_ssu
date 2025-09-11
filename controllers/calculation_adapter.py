@@ -447,16 +447,15 @@ from phys_prop.calc_phys_prop import PhysMinimalRunner
 
 def make_rho_phys_from_raw(base_raw: dict):
     """
-    Делает функцию rho(comp_pct)->ro, используя PhysMinimalRunner(base_raw с подменённым composition).
-    Включён LRU-кэш, чтобы не гонять движок по одному и тому же составу.
+    Возвращает функцию rho(comp_pct)->rho_SI, где comp_pct — проценты.
+    Берём T, p_abs и прочие условия из base_raw. Кэшируем по составу.
     """
     @lru_cache(maxsize=128)
     def _rho_cached(items_tuple):
-        comp_pct = dict(items_tuple)  # {'CO2': 2.5, ...} — в процентах
+        comp_pct = dict(items_tuple)
         raw2 = copy.deepcopy(base_raw)
         phys = raw2.setdefault("physPackage", {}).setdefault("physProperties", {})
-        phys["composition"] = comp_pct
-        # ВАЖНО: T, p_abs и прочие условия берутся из base_raw как есть.
+        phys["composition"] = comp_pct  # В ПРОЦЕНТАХ
         res = PhysMinimalRunner(raw2).to_dict()
         ro = res.get("ro")
         if ro is None:
@@ -469,7 +468,67 @@ def make_rho_phys_from_raw(base_raw: dict):
 
     return rho
 
+def _normalize_comp_for_phys(raw_in: dict, methane_name: str = "Methane", policy: str = "METHANE_BY_DIFF"):
+    raw_phys = copy.deepcopy(raw_in)
 
+    # 1) исходный источник состава — сперва из compositionErrorPackage, иначе из physPackage
+    comp_src = None
+    pkg = raw_phys.get("compositionErrorPackage") or (raw_phys.get("errorPackage") or {}).get("compositionErrorPackage")
+    if isinstance(pkg, dict) and isinstance(pkg.get("composition"), dict) and pkg["composition"]:
+        comp_src = dict(pkg["composition"])
+    else:
+        comp_src = ((raw_phys.get("physPackage") or {}).get("physProperties") or {}).get("composition") or {}
+        comp_src = dict(comp_src)
+
+    # 2) пробуем нормализовать твоим алгоритмом
+    comp_norm = None
+    try:
+        from errors.errors_handler import for_package as F
+
+        # пробуем несколько «типичных» имён — чтобы не зависеть от точного названия твоей функции
+        for fn_name in ("normalize_percent_vector", "normalize_composition_percent",
+                        "normalize_comp_percent", "normalize_composition"):
+            fn = getattr(F, fn_name, None)
+            if callable(fn):
+                try:
+                    comp_norm = fn(comp_src, methane_name=methane_name, policy=policy)
+                except TypeError:
+                    # вдруг без именованных аргументов
+                    comp_norm = fn(comp_src)
+                break
+
+        # если в for_package есть high-level подготовка под методику — используем её с приоритетом
+        for fn_name in ("prepare_normalized_composition", "prepare_composition_for_phys"):
+            fn = getattr(F, fn_name, None)
+            if callable(fn):
+                tmp = fn(comp_src, methane_name=methane_name)
+                if isinstance(tmp, dict) and tmp:
+                    comp_norm = tmp
+                    break
+
+    except Exception as e:
+        _log.debug("for_package normalization fallback: %s", e)
+
+    # 3) простой фоллбек (если по каким-то причинам не нашли твою функцию)
+    if not isinstance(comp_norm, dict) or not comp_norm:
+        # обрежем отрицательные, досуммируем на 100:
+        comp_pos = {k: (float(v) if float(v) > 0 else 0.0) for k, v in comp_src.items()}
+        s = sum(comp_pos.values())
+        if s > 0:
+            comp_norm = {k: (v * 100.0 / s) for k, v in comp_pos.items()}
+        else:
+            comp_norm = dict(comp_pos)
+
+        # «метан компенсирует», если есть — доводим сумму ровно до 100
+        if methane_name in comp_norm:
+            delta = 100.0 - sum(comp_norm.values())
+            comp_norm[methane_name] = max(0.0, comp_norm[methane_name] + delta)
+
+    # 4) подменяем состав в physPackage
+    phys_props = raw_phys.setdefault("physPackage", {}).setdefault("physProperties", {})
+    phys_props["composition"] = comp_norm
+
+    return raw_phys, comp_norm
 
 
 # -------------------- Добор коэффициентов из ССУ, если ssu.run_all() их не вернул --------------------
@@ -605,6 +664,7 @@ def run_calculation(*args: Any, **kwargs: Any):
     errors_res = _calc_errors_simple(raw, v)
 
     # ---- ФИЗИКА (+θ) ----
+    raw_phys, comp_norm = _normalize_comp_for_phys(raw)
     phys_block = {"skip": True}
     u_rho_rel = u_rho_std_rel = 0.0
 
@@ -620,7 +680,7 @@ def run_calculation(*args: Any, **kwargs: Any):
         pp.setdefault("humidityType", "RelativeHumidity")
 
         # 1) считаем физику (без θ)
-        phys = PhysMinimalRunner(raw).to_dict()
+        phys = PhysMinimalRunner(raw_phys).to_dict()
 
         # подставляем в v, если пусто
         v.setdefault("Ro", phys.get("ro"))
@@ -666,6 +726,8 @@ def run_calculation(*args: Any, **kwargs: Any):
                               {"value": "k", "variable": "p"}])
             except Exception:
                 pass
+
+
 
             # --- фоллбек: центральная разность на PhysMinimalRunner
             def _fd_logtheta(var: str, h: float = 0.01):
@@ -739,7 +801,7 @@ def run_calculation(*args: Any, **kwargs: Any):
 
             return thetas or None
 
-        phys_thetas = _calc_thetas_safe(raw)
+        phys_thetas = _calc_thetas_safe(raw_phys)
         # компактный блок для выдачи
         phys_block = {
             "skip": False,
@@ -1034,15 +1096,11 @@ def run_calculation(*args: Any, **kwargs: Any):
             from errors.errors_handler import for_package as F
 
             try:
-                F.RHO_FN_OVERRIDE = make_rho_phys_from_raw(raw)
-                u_N, comp_theta = _composition_u_and_theta(raw)
+                F.RHO_FN_OVERRIDE = make_rho_phys_from_raw(raw)  # ← включили «настоящую» ρ
+                u_N, comp_theta = _composition_u_and_theta(raw)  # ← твой вызов, как есть
             finally:
-                F.RHO_FN_OVERRIDE = None
+                F.RHO_FN_OVERRIDE = None  # ← ОБЯЗАТЕЛЬНО сбросили
 
-            try:
-                u_N, comp_theta = _composition_u_and_theta(raw)
-            except Exception as _exc:
-                _log.warning("composition uncertainties skipped: %s", _exc)
 
             Xa = v.get("Xa") if "Xa" in v else None  # todo тут уже обработанный состав
             Xy = v.get("Xy") if "Xy" in v else None  # todo тут уже обработанный состав

@@ -36,6 +36,53 @@ def _ensure_min_request_list(
     return [{"documentId": default_doc, "physValueId": v} for v in values]
 
 
+# -------------------- утилиты --------------------
+def normalize_composition_percent_map(comp_in: Mapping[str, Any],
+                                      *,
+                                      total: float = 100.0,
+                                      clamp_negatives: bool = True,
+                                      drop_zeros: bool = True,
+                                      eps: float = 1e-12) -> dict:
+    """
+    Нормализует словарь состава в процентах так, чтобы сумма стала total (по умолчанию 100.0).
+    - Некорректные/NaN/None → 0.
+    - Отрицательные (если clamp_negatives=True) → 0.
+    - Нули можно отбрасывать (drop_zeros=True).
+    """
+    comp: dict[str, float] = {}
+    for k, v in (comp_in or {}).items():
+        try:
+            x = float(v)
+            if not math.isfinite(x):
+                x = 0.0
+        except Exception:
+            x = 0.0
+        if clamp_negatives and x < 0:
+            x = 0.0
+        comp[str(k)] = x
+
+    s = sum(comp.values())
+    if s <= eps:
+        # если всё обнулилось — вернём как есть (всё нули)
+        return {k: 0.0 for k in comp.keys()}
+
+    scale = float(total) / s
+    out = {k: x * scale for k, x in comp.items()}
+
+    if drop_zeros:
+        out = {k: x for k, x in out.items() if abs(x) > eps}
+
+    # Коррекция из-за округлений: жёстко доведём сумму до total
+    s2 = sum(out.values())
+    if s2 > eps and abs(s2 - total) > 1e-9 and len(out) > 0:
+        # подкорректируем максимальный компонент
+        kmax = max(out, key=lambda k: out[k])
+        out[kmax] += (total - s2)
+
+    return out
+
+
+
 # -------------------- минимальный раннер --------------------
 
 class PhysMinimalRunner:
@@ -65,6 +112,21 @@ class PhysMinimalRunner:
         try:
             phys_pkg = self.data["physPackage"]
             self.input_props: Mapping[str, Any] = phys_pkg["physProperties"]
+            # Нормализация состава (в процентах) для всех последующих расчётов
+            try:
+                comp_raw = (self.input_props or {}).get("composition")
+                if isinstance(comp_raw, Mapping):
+                    comp_norm = normalize_composition_percent_map(comp_raw)
+                    # Не мутируем исходник «снаружи»: делаем локальную копию input_props
+                    ip = dict(self.input_props)
+                    ip["composition"] = comp_norm
+                    self.input_props = ip
+                    # Также положим обратно в self.data, чтобы все дочерние вызовы видели тот же состав
+                    self.data["physPackage"]["physProperties"] = ip
+                    self.log.debug("Composition normalized: sum=%.8f%%", sum(comp_norm.values()))
+            except Exception as _e:
+                self.log.warning("Composition normalization skipped: %s", _e)
+
             given_request_list: Optional[List[Mapping[str, Any]]] = phys_pkg.get("requestList", None)
         except KeyError as e:
             raise ValidationError(f"Отсутствует обязательное поле: {e}", __package__)
@@ -212,6 +274,13 @@ def run_phys_minimal(data: Mapping[str, Any]) -> Dict[str, Any]:
     theta_list = make_theta_list()
     runner = PhysMinimalRunner(data, theta_request_list=theta_list)
     return runner.to_dict()
+
+__all__ = [
+  "PhysMinimalRunner",
+  "make_theta_list",
+  "run_phys_minimal",
+  "normalize_composition_percent_map",
+]
 
 
 # -------------------- пример использования --------------------
