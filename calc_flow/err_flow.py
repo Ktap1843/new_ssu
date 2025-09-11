@@ -2,8 +2,6 @@ from __future__ import annotations
 import math
 from typing import Tuple, Mapping, Any
 
-
-# --- утилиты ---
 def _rss(values):
     s = 0.0
     for v in values:
@@ -14,7 +12,6 @@ def _rss(values):
     return s ** 0.5
 
 def _rel_of(node: Any) -> float | None:
-    """Берём node['rel'] если это словарь вида {'rel': ...}."""
     if isinstance(node, Mapping) and "rel" in node:
         try:
             return float(node["rel"])
@@ -39,7 +36,6 @@ class SimpleErrFlow:
 
         b = self.beta
         t = self.type
-        # считаем 'conical' как 'cone'
         if t in ("cone", "conical"):
             # 10.16–10.17 для конической
             v_D = 2 * (1 + b**2 + b**4) / (b**2 * (1 + b**2))
@@ -58,7 +54,6 @@ class SimpleErrFlow:
             v_D = 2.0 - v_piece
             v_d = v_piece
         else:
-            # generic sharp-edged orifice
             denom = (1.0 - b**4)
             if denom <= 0.0:
                 raise ValueError("1 - beta^4 должно быть > 0")
@@ -67,43 +62,60 @@ class SimpleErrFlow:
 
         return float(v_D), float(v_d)
 
-    @staticmethod
-    def density_from_phys(self,
-            Xa: float, Xy: float,
-            u_Xa: float, u_Xy: float,
-            u_T: float = 0.0, u_p: float = 0.0, u_N: dict | {} = {}) -> dict:
+    def density_uncertainties(self, Xa: float | None = None, Xy: float | None = None, u_Xa: float = 0.0, u_Xy: float = 0.0,
+                              u_T: float = 0.0, u_p: float = 0.0, u_N: dict | None = None ) -> dict:
+        try:
+            pb = self.phys_block or {}
+            th = (pb.get("thetas") or {})
 
+            err_rho = pb.get("err_ro", pb.get("err_rho"))
+            err_rho_st = pb.get("err_ro_st", pb.get("err_rho_st"))
+            rho = pb.get("rho")
+            rho_st = pb.get("rho_st")
+            u_rho_ref = (float(err_rho) / float(rho)) if (err_rho is not None and rho) else 0.0
+            u_rho_stdref = (float(err_rho_st) / float(rho_st)) if (err_rho_st is not None and rho_st) else 0.0
+            th_T = float(th.get("theta_rho_T", 0.0))
+            th_p = float(th.get("theta_rho_p_abs", th.get("theta_rho_p", 0.0)))
+            th_Xa = float(th.get("theta_rho_Xa", 0.0))
+            th_Xy = float(th.get("theta_rho_Xy", 0.0))
+            th_N = float(th.get("theta_rho_N", 0.0))
+            s2 = u_rho_ref ** 2 + (th_T * u_T) ** 2 + (th_p * u_p) ** 2
+            if not u_N and (Xa is None and Xy is None):
+                pass
+            elif (Xa is not None) or (Xy is not None):
+                s2 += (th_Xa * u_Xa) ** 2 + (th_Xy * u_Xy) ** 2
+            elif u_N:
+                dx = float(u_N.get("N", 0.0))
+                s2 += (th_N * dx) ** 2
 
+            u_rho = s2 ** 0.5
 
-        if u_N is {} and (Xa or Xy is None):
-            u_rho = (self.phys_block.get("err_rho")**2 + self.phys_block.thetas.get("theta_rho_p_abs")**2 * u_p**2 +
-                     self.phys_block.thetas.get("theta_rho_T")**2 * u_T**2)**0.5
-        elif Xa or Xy is not None:
-            u_rho = (self.phys_block.get("err_rho")**2 + self.phys_block.thetas.get("theta_rho_p_abs")**2 * u_p**2 +
-                     self.phys_block.thetas.get("theta_rho_T")**2 * u_T**2 +
-                     self.phys_block.thetas.get("theta_rho_Xa")**2 * u_Xa**2 +
-                     self.phys_block.thetas.get("theta_rho_Xy")**2 * u_Xy**2)**0.5
-        elif u_N is not {}:
-            u_rho = (self.phys_block.get("err_rho")**2 + self.phys_block.thetas.get("theta_rho_p_abs")**2 * u_p**2 +
-                     self.phys_block.thetas.get("theta_rho_T")**2 * u_T**2 + (self.phys_block.thetas.get("theta_rho_N") * dx)**2)**0.5 #сделать теты по составу и дбавить погрешности компонентов
+            s2c = u_rho_stdref ** 2
 
-        return u_rho
+            if not u_N and (Xa is None and Xy is None):
+                pass
+            elif (Xa is not None) or (Xy is not None):
+                s2c += (th_Xa * u_Xa) ** 2 + (th_Xy * u_Xy) ** 2
+            elif u_N:
+                dx = float(u_N.get("N", 0.0))
+                s2c += (th_N * dx) ** 2
 
-    # ------------- (2) Вклады C и ε -------------
+            u_rhoc = s2c ** 0.5
+
+            return u_rho, u_rhoc
+
+        except Exception:
+            log.error("Упал расчет огрешности плотности")
+            return None
+
     @staticmethod
     def coeff_C(u_d_Cm: float | None) -> float:
-        """Относительная погрешность C: подаём уже посчитанную d_Cm (в долях)."""
         if u_d_Cm is None:
             return 0.0
         return abs(float(u_d_Cm))
 
     @staticmethod
     def coeff_epsilon(*, epsilon: float, u_epsm: float | None, u_dp: float | None, u_p: float | None, u_k: float = 0.0) -> float:
-        """
-        Формула 10.22 БЕЗ коэффициентов чувствительности:
-            u_ε = sqrt( u_εm^2 + (ε - 1)^2 * (u_dp^2 + u_p^2 + u_k^2) )
-        Все входы — относительные (доли), epsilon — числовое значение ε.
-        """
         e = float(epsilon)
         ue = 0.0 if u_epsm is None else float(u_epsm)
         udp = 0.0 if u_dp   is None else float(u_dp)
@@ -111,36 +123,25 @@ class SimpleErrFlow:
         uk  = float(u_k or 0.0)
         return _rss([ue, (e - 1.0) * udp, (e - 1.0) * up, (e - 1.0) * uk])
 
-    # ------------- (3) Итоговые расходы 10.13–10.15 (унифицированный вид) -------------
     @staticmethod
     def flow_mass(*, u_C: float, u_eps: float, u_dp: float, u_rho: float = 0.0, u_v_D, u_v_d: float = 0.0, u_corr: float = 0.0) -> float:
-        """
-        Массовый расход (10.13—обобщённо): u_Qm = sqrt( u_C^2 + u_ε^2 + u_Δp^2 + u_ρ^2 + u_v_D, u_v_d^2 + u_corr^2 )
-        Все величины — относительные (доли).
-        """
         return _rss([u_C, u_eps, u_dp, u_rho, u_v_D, u_v_d, u_corr])
 
     @staticmethod
     def flow_vol_actual(*, u_C: float, u_eps: float, u_dp: float, u_rho: float = 0.0, u_v_D, u_v_d: float = 0.0, u_corr: float = 0.0) -> float:
-        """
-        Объёмный в рабочих условиях (10.14—обобщённо): тот же корень — плотность берётся «рабочая».
-        """
         return _rss([u_C, u_eps, u_dp, u_rho, u_v_D, u_v_d, u_corr])
 
     @staticmethod
     def flow_vol_std(*, u_C: float, u_eps: float, u_dp: float, u_rho_std: float = 0.0, u_v_D, u_v_d: float = 0.0, u_corr: float = 0.0) -> float:
-        """
-        Объёмный в стандартных условиях (10.15—обобщённо): вместо u_ρ — u_ρ,std.
-        """
         return _rss([u_C, u_eps, u_dp, u_rho_std, u_v_D, u_v_d, u_corr])
 
-    # ------------- мини-репорт только по расходам -------------
+
     @staticmethod
     def report(u_Qm: float, u_Qv: float, u_Qstd: float) -> dict:
         return {
-            "u_Qm":   {"rel": u_Qm,   "percent": u_Qm * 100.0},
-            "u_Qv":   {"rel": u_Qv,   "percent": u_Qv * 100.0},
-            "u_Qstd": {"rel": u_Qstd, "percent": u_Qstd * 100.0},
+            "u_Qm":   {"rel": u_Qm},
+            "u_Qv":   {"rel": u_Qv},
+            "u_Qstd": {"rel": u_Qstd},
         }
 
 
@@ -149,12 +150,6 @@ class SimpleErrFlow:
 
 
 
-
-
-
-# ======================================================================================
-# Песочница: одна функция, чтобы быстро «поиграться» параметрами на твоём payload’е
-# ======================================================================================
 
 def try_errors_flow(payload: Mapping[str, Any], *, u_rho: float = 0.0, u_rho_std: float = 0.0, u_geom: float = 0.0, u_corr: float | None = None) -> dict:
     """

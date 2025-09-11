@@ -907,12 +907,6 @@ def run_calculation(*args: Any, **kwargs: Any):
             if u_corr is None:
                 u_corr = 0.0  # если корректора нет — считаем 0
 
-            # Плотности и геометрия: если неопределённости не подаются — оставляем 0.0 (можно будет прокинуть позже)
-            u_rho = 0.0
-            u_rho_std = 0.0
-            u_geom = 0.0
-
-            # Конструктор + геом. чувствительности
             beta_eff = getattr(cf, "beta", None)
             if beta_eff is None and D_:
                 beta_eff = d_ / D_
@@ -933,15 +927,27 @@ def run_calculation(*args: Any, **kwargs: Any):
 
             u_eps = SEF.coeff_epsilon(
                 epsilon=float(eps_),
-                u_epsm=d_Epsilonm,  # относительная (доли)
-                u_dp=u_dp,  # относительная (доли)
-                u_p=u_p,  # относительная (доли)
-                u_k=0.0  # при необходимости можно подать
+                u_epsm=d_Epsilonm,
+                u_dp=u_dp,
+                u_p=u_p,
+                u_k=0.0
             )
 
-            # u_rho = SEF.u_density()       #todo все возможные тетты подготовить для состава, для второй части, для моно сред
-            # u_rho_std =   #TODO ЧТО ДЕЛАТЬ С ПЛОТН В СТ УСЛ
-            # u_geom = ((v_D * D)**2 + (v_d * d)**2)**2
+            u_T = _rel_only(inputs_rel.get("T")) or _rel_only(inputs_rel.get("t"))
+            u_p = _rel_only(inputs_rel.get("p"))
+            Xa = v.get("Xa") if "Xa" in v else None #todo тут уже обработанный состав
+            Xy = v.get("Xy") if "Xy" in v else None #todo тут уже обработанный состав
+            u_Xa = v.get("u_Xa") if "u_Xa" in v else None #todo тут уже обработанный состав
+            u_Xy = v.get("u_Xy") if "u_Xy" in v else None #todo тут уже обработанный состав
+            u_N = v.get("u_N") if "u_N" in v else None  #todo тут уже обработанный состав
+
+            u_rho, u_rho_std = ef.density_uncertainties(
+                u_T=u_T,
+                u_p=u_p,
+                Xa=Xa, Xy=Xy,
+                u_Xa=u_Xa, u_Xy=u_Xy,
+                u_N=u_N,
+            )      #todo все возможные тетты подготовить для состава, для второй части, для моно сред
             u_v_D = v_D * D
             u_v_d = v_d * d
 
