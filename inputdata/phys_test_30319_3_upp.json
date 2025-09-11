@@ -1,0 +1,141 @@
+{
+  "type": "cone",
+  "ctrlRequest": {
+    "steps": [
+      "create_orifice",
+      "calculate_flow"
+    ]
+  },
+  "compositionErrorPackage": {
+  "composition": {
+    "CarbonDioxide": 0.25,
+    "Ethane": 5.5,
+    "Methane": 90,
+    "Nitrogen": 0.25
+  },
+  "error_composition": {
+    "CarbonDioxide": {
+      "errorInputMethod": "ByValue",
+      "intrError": {
+        "errorTypeId": "UppErr",
+        "range": { "range": { "min": 0.2, "max": 0.3, "rangeType": "Inclusive" }, "unit": "percent" },
+        "value": null
+      },
+      "complError": null
+    },
+    "Ethane": {
+      "errorInputMethod": "ByValue",
+      "intrError": {
+        "errorTypeId": "UppErr",
+        "range": { "range": { "min": 5.0, "max": 6.0, "rangeType": "Inclusive" }, "unit": "percent" },
+        "value": null
+      },
+      "complError": null
+    },
+    "Methane": {
+      "errorInputMethod": "ByValue",
+      "intrError": {
+        "errorTypeId": "UppErr",
+        "range": { "range": { "min": 89.0, "max": 92.0, "rangeType": "Inclusive" }, "unit": "percent" },
+        "value": null
+      },
+      "complError": null
+    },
+    "Nitrogen": {
+      "errorInputMethod": "ByValue",
+      "intrError": {
+        "errorTypeId": "UppErr",
+        "range": { "range": { "min": 0.2, "max": 0.3, "rangeType": "Inclusive" }, "unit": "percent" },
+        "value": null
+      },
+      "complError": null
+    }
+  },
+  "request": null
+},
+  "physPackage": {
+  "physProperties": {
+    "methodic": "",
+    "aggregate_state": "gas",
+
+    "T":   { "real": 18, "unit": "C" },
+    "p_abs": { "real": 2, "unit": "MPa" },
+    "dp": { "real": 8, "unit": "KPa" },
+
+    "T_st": { "real": 20, "unit": "C" },
+    "p_st": { "real": 0.101325, "unit": "MPa" },
+
+    "phi": { "real": 0, "unit": "percent" },
+    "humidityType": "RelativeHumidity",
+
+    "composition": {
+    "CarbonDioxide": 0.25,
+    "Ethane": 5.5,
+    "Methane": 90,
+    "Nitrogen": 0.25
+  },
+
+    "Ro": null, "Roc": null, "k": null, "mu": null
+  },
+  "requestList": [
+    { "documentId": "GOST_30319_3_2015", "physValueId": "rho" },
+    { "documentId": "GOST_30319_3_2015", "physValueId": "rho_st" },
+    { "documentId": "GOST_30319_3_2015", "physValueId": "k" },
+    { "documentId": "GOST_30319_3_2015", "physValueId": "mu" }
+  ]
+},
+  "lenPackage": {
+    "lenProperties": {
+      "d20": {
+        "real": 70,
+        "unit": "mm"
+      },
+      "D20": {
+        "real": 100,
+        "unit": "mm"
+      },
+      "d20_steel": "12x18n10t",
+      "D20_steel": "12x18n10t",
+      "alpha": 12.0,
+      "Ra": {
+        "real": 2.0,
+        "unit": "um"
+      }
+    },
+    "straightness": {
+      "ms_before": [
+             {"type": "cock"},
+             {"type": "tee"}
+         ],
+         "ms_after": [
+             {"type": "unknown_valve"}
+         ],
+             "skip": false
+    }
+  },
+  "errorPackage": {
+  "hasToCalcErrors": true,
+  "errors": {
+    "temperatureErrorProState": {
+      "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 1.0, "unit": "C" } },
+      "complError": { "errorTypeId": "AbsErr", "value": { "real": 0.5, "unit": "C" } }
+    },
+    "absPressureErrorProState": {
+      "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 0.01, "unit": "MPa" } },
+      "complError": { "errorTypeId": "AbsErr", "value": { "real": 2.0,  "unit": "kPa" } }
+    },
+    "diffPressureErrorProState": {
+      "intrError":  { "errorTypeId": "AbsErr", "value": { "real": 300.0, "unit": "Pa" } }
+    },
+    "calcCorrectorProState": {
+      "intrError":  { "errorTypeId": "RelErr", "value": { "real": 0.8, "unit": "percent" } },
+      "complError": { "errorTypeId": "RelErr", "value": { "real": 0.6, "unit": "percent" } }
+    },
+    "flowErrorProState": {
+      "intrError":          { "errorTypeId": "RelErr", "value": { "real": 0.5, "unit": "percent" } },
+      "outSignalIntrError": { "errorTypeId": "RelErr", "value": { "real": 0.3, "unit": "percent" } }
+    }
+  }
+
+  }
+}

@@ -677,7 +677,7 @@ def run_calculation(*args: Any, **kwargs: Any):
             raise ImportError("PhysMinimalRunner не найден")
 
         # дефолты для std-условий и сухого газа (если не заданы)
-        pp = raw.setdefault("physPackage", {}).setdefault("physProperties", {})
+        pp = raw_phys.setdefault("physPackage", {}).setdefault("physProperties", {})
         pp.setdefault("T_st", {"real": 20, "unit": "C"})
         pp.setdefault("p_st", {"real": 0.101325, "unit": "MPa"})
         pp.setdefault("phi", {"real": 0, "unit": "percent"})
@@ -722,7 +722,7 @@ def run_calculation(*args: Any, **kwargs: Any):
                     ppkg = data_for_t.setdefault("physPackage", {})
                     # безопасный requestList — только rho и k (твой documentId сохраняем, если есть)
                     rl_src = list((base_raw.get("physPackage") or {}).get("requestList") or [])
-                    doc = rl_src[0]["documentId"] if rl_src and isinstance(rl_src[0], dict) else "GOST_30319_3"
+                    doc = rl_src[0]["documentId"] if rl_src and isinstance(rl_src[0], dict) else None
                     ppkg["requestList"] = [{"documentId": doc, "physValueId": "rho"},
                                            {"documentId": doc, "physValueId": "k"}]
 
