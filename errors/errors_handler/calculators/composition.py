@@ -45,7 +45,7 @@ class CompositionCalculator:
             delta_rho_f=delta_rho_f,
             theta_rho_T=theta_rho_T, delta_T=delta_T,
             theta_rho_p=theta_rho_p, dp=dp,
-            decimals=decimals,            # ← по умолчанию None, т.е. без округлений
+            decimals=decimals,
             fix_sum_to=fix_sum_to,
             deltas_override_pp=deltas_override_pp,
         )

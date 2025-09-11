@@ -1,11 +1,13 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Sequence, Callable
 from importlib import import_module
 import json
 
 from PyFizika import calc_phys_properties_from_requestList
 from phys_prop_exceptions import ValidationError
 from logger_config import get_logger
+
+
 
 
 # -------------------- утилиты --------------------
@@ -106,7 +108,7 @@ class PhysMinimalRunner:
             if k == "thetas":
                 continue
             if v is None:
-                self.log.warning("'%s' == None", k)
+                pass#self.log.warning("'%s' == None", k)
 
         return out
 

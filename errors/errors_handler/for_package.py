@@ -1,7 +1,10 @@
 # errors/errors_handler/for_package.py
 from __future__ import annotations
-from typing import Optional, Sequence, List, Dict, Tuple
+from typing import Optional, Sequence, List, Dict, Tuple, Callable
 from math import sqrt
+
+# === внешний DI-хук для плотности ===
+RHO_FN_OVERRIDE: Optional[Callable[[Dict[str, float]], float]] = None
 
 # ========= Исключение =========
 class CalcThetaError(Exception):
@@ -213,6 +216,15 @@ MOLAR_MASS = {
     "iPentane": 72.151, "nPentane": 72.151, "Helium": 4.0026, "Hydrogen": 2.016,
 }
 def rho_from_composition_percent(comp_pct: Dict[str, float]) -> float:
+    # если подложили реальную ρ — используем её
+    if RHO_FN_OVERRIDE is not None:
+        try:
+            return float(RHO_FN_OVERRIDE(comp_pct))
+        except Exception:
+            # если внешний движок упал — мягкий откат на упрощённую модель
+            pass
+
+    # fallback: "средняя мол. масса" как раньше
     names, fracs = _as_fractions_from_percent_dict(comp_pct)
     M = 0.0
     for n, x in zip(names, fracs):
@@ -432,7 +444,7 @@ def run_method10(
         "final_comp_example": final_comp # пример нормированного состава
     }
 
-# ========= ДЕМО =========
+
 if __name__ == "__main__":
     composition = {
         "CarbonDioxide": 2.5, "Ethane": 6, "Helium": 0.015, "Hydrogen": 0.005, "Methane": 87.535,

@@ -58,12 +58,6 @@ def _get_phys(raw: Mapping[str, Any], key: str) -> Optional[Any]:
 
 
 def _coerce_mu_si(val_from_values: Any, val_from_raw_node: Any) -> Optional[float]:
-    """
-    Возвращает динамическую вязкость в Па·с.
-    Поддерживаем входы:
-      - число (считаем уже в Па·с)
-      - dict {'real': ..., 'unit': ...} где unit ∈ {'Pa_s','mPa_s','uPa_s','μPa_s'}
-    """
     def _from_any(node):
         if node is None:
             return None
@@ -93,7 +87,6 @@ def _coerce_mu_si(val_from_values: Any, val_from_raw_node: Any) -> Optional[floa
     return _from_any(val_from_raw_node)
 
 def _rel_only(node):
-    """Вытащить node['rel'] если он есть, иначе None."""
     try:
         if isinstance(node, dict) and "rel" in node:
             return float(node["rel"])
@@ -264,12 +257,9 @@ def _calc_errors_simple(raw: Mapping[str, Any], v: Mapping[str, Any]) -> dict:
 
     phys = (raw.get("physPackage") or {}).get("physProperties", {})
 
-    # нормализованные величины в СИ
     T_K   = _to_kelvin( phys.get("T") if phys.get("T") is not None else v.get("T") )
     p_pa  = _to_pa(    phys.get("p_abs") if phys.get("p_abs") is not None else v.get("p") )
     dp_pa = _to_pa(    phys.get("dp") if phys.get("dp") is not None else v.get("dp") )
-
-    # ---- сначала пробуем существующий адаптер, но кормим его уже нормализованными значениями ----
     selected = {}
     adapter_ok = False
     try:
@@ -372,9 +362,114 @@ def _calc_errors_simple(raw: Mapping[str, Any], v: Mapping[str, Any]) -> dict:
     }
 
 
-    # except Exception as exc:
-    #     _log.warning("Errors (simple) общий сбой: %s", exc)
-    #     return {"skip": False, "error": str(exc)}
+import copy
+
+def _normalize_composition_pkg_for_cc(pkg: Mapping[str, Any]) -> dict:
+    """Превращает числовые intrError/complError в ожидаемые словари (RelErr, percent)."""
+    cp = copy.deepcopy(pkg)
+    ec = cp.get("error_composition") or {}
+    if not isinstance(ec, dict):
+        cp["error_composition"] = {}
+        return cp
+
+    for name, node in list(ec.items()):
+        if not isinstance(node, dict):
+            ec[name] = {"intrError": None, "complError": None}
+            continue
+
+        ce = node.get("complError")
+        if isinstance(ce, (int, float)):
+            node["complError"] = {
+                "errorTypeId": "RelErr",
+                "value": {"real": float(ce), "unit": "percent"},
+            }
+
+        ie = node.get("intrError")
+        if isinstance(ie, (int, float)):
+            node["intrError"] = {
+                "errorTypeId": "RelErr",
+                "value": {"real": float(ie), "unit": "percent"},
+            }
+        elif isinstance(ie, dict):
+            val = ie.get("value")
+            if isinstance(val, (int, float)):
+                ie["value"] = {"real": float(val), "unit": "percent"}
+
+    return cp
+
+
+def _composition_u_and_theta(raw: Mapping[str, Any],
+                             methane_name: str = "Methane") -> tuple[Optional[dict], Optional[dict]]:
+    pkg = raw.get("compositionErrorPackage")
+    if not isinstance(pkg, dict):
+        pkg = (raw.get("errorPackage") or {}).get("compositionErrorPackage")
+    if not isinstance(pkg, dict):
+        _log.debug("compositionErrorPackage: ожидается dict, пришло %s — пропускаю", type(pkg).__name__)
+        return None, None
+
+    comp = pkg.get("composition")
+    if not isinstance(comp, dict) or not comp:
+        _log.debug("compositionErrorPackage.composition пуст или не dict — пропускаю")
+        return None, None
+
+    # ВАЖНО: нормализуем перед калькулятором
+    safe_pkg = _normalize_composition_pkg_for_cc(pkg)
+
+    try:
+        from errors.errors_handler.calculators.composition import CompositionCalculator as CC
+        res = CC({"compositionErrorPackage": safe_pkg}).compute(
+            mode="auto", methane_name=methane_name, decimals=None
+        )
+    except Exception as e:
+        _log.warning("CompositionCalculator failed: %s", e)
+        return None, None
+
+    delta_pp = res.get("delta_pp_by_component") or {}
+    theta_by_component = res.get("theta_by_component") or {}
+
+    # u_i (%) = (δx_i [п.п.] / x_i [%]) * 100
+    u_percent: dict[str, float] = {}
+    for name, xi in comp.items():
+        try:
+            xi_pct = float(xi)
+            d_pp = float(delta_pp.get(name, 0.0))
+            u_percent[name] = (d_pp / xi_pct * 100.0) if xi_pct > 0.0 else 0.0
+        except Exception:
+            u_percent[name] = 0.0
+
+    theta_full: dict[str, float] = {name: float(theta_by_component.get(name, 0.0)) for name in comp.keys()}
+
+    return (u_percent or None), (theta_full or None)
+
+import copy
+from functools import lru_cache
+from phys_prop.calc_phys_prop import PhysMinimalRunner
+
+def make_rho_phys_from_raw(base_raw: dict):
+    """
+    Делает функцию rho(comp_pct)->ro, используя PhysMinimalRunner(base_raw с подменённым composition).
+    Включён LRU-кэш, чтобы не гонять движок по одному и тому же составу.
+    """
+    @lru_cache(maxsize=128)
+    def _rho_cached(items_tuple):
+        comp_pct = dict(items_tuple)  # {'CO2': 2.5, ...} — в процентах
+        raw2 = copy.deepcopy(base_raw)
+        phys = raw2.setdefault("physPackage", {}).setdefault("physProperties", {})
+        phys["composition"] = comp_pct
+        # ВАЖНО: T, p_abs и прочие условия берутся из base_raw как есть.
+        res = PhysMinimalRunner(raw2).to_dict()
+        ro = res.get("ro")
+        if ro is None:
+            raise RuntimeError("PhysMinimalRunner не вернул ro")
+        return float(ro)
+
+    def rho(comp_pct: dict) -> float:
+        items = tuple(sorted((str(k), float(v)) for k, v in comp_pct.items()))
+        return _rho_cached(items)
+
+    return rho
+
+
 
 
 # -------------------- Добор коэффициентов из ССУ, если ssu.run_all() их не вернул --------------------
@@ -935,11 +1030,25 @@ def run_calculation(*args: Any, **kwargs: Any):
 
             u_T = _rel_only(inputs_rel.get("T")) or _rel_only(inputs_rel.get("t"))
             u_p = _rel_only(inputs_rel.get("p"))
-            Xa = v.get("Xa") if "Xa" in v else None #todo тут уже обработанный состав
-            Xy = v.get("Xy") if "Xy" in v else None #todo тут уже обработанный состав
-            u_Xa = v.get("u_Xa") if "u_Xa" in v else None #todo тут уже обработанный состав
-            u_Xy = v.get("u_Xy") if "u_Xy" in v else None #todo тут уже обработанный состав
-            u_N = v.get("u_N") if "u_N" in v else None  #todo тут уже обработанный состав
+
+            from errors.errors_handler import for_package as F
+
+            try:
+                F.RHO_FN_OVERRIDE = make_rho_phys_from_raw(raw)
+                u_N, comp_theta = _composition_u_and_theta(raw)
+            finally:
+                F.RHO_FN_OVERRIDE = None
+
+            try:
+                u_N, comp_theta = _composition_u_and_theta(raw)
+            except Exception as _exc:
+                _log.warning("composition uncertainties skipped: %s", _exc)
+
+            Xa = v.get("Xa") if "Xa" in v else None  # todo тут уже обработанный состав
+            Xy = v.get("Xy") if "Xy" in v else None  # todo тут уже обработанный состав
+            u_Xa = v.get("u_Xa") if "u_Xa" in v else None  # todo тут уже обработанный состав
+            u_Xy = v.get("u_Xy") if "u_Xy" in v else None  # todo тут уже обработанный состав
+            #u_N = v.get("u_N") if "u_N" in v else None  # todo тут уже обработанный состав
 
             u_rho, u_rho_std = ef.density_uncertainties(
                 u_T=u_T,
